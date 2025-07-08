@@ -5,7 +5,6 @@ import com.hugin_munin.model.RegistroAlta;
 import com.hugin_munin.model.Especimen;
 import com.hugin_munin.model.Especie;
 import com.hugin_munin.model.OrigenAlta;
-import com.hugin_munin.model.Usuario;
 
 import java.sql.*;
 import java.util.ArrayList;
