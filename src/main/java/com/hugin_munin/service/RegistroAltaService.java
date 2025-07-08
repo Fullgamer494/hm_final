@@ -1,14 +1,9 @@
 package com.hugin_munin.service;
 
 import com.hugin_munin.model.RegistroAlta;
-import com.hugin_munin.model.Usuario;
-import com.hugin_munin.model.OrigenAlta;
-import com.hugin_munin.model.Especimen;
-import com.hugin_munin.model.Especie;
 import com.hugin_munin.repository.RegistroAltaRepository;
 
 import java.sql.SQLException;
-import java.sql.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,38 +15,57 @@ public class RegistroAltaService {
         this.repository = repository;
     }
 
-    // CREAR registro con validación de negocio
+    /**
+     * CREAR registro con validación de negocio
+     */
     public RegistroAlta create(RegistroAlta registro) throws SQLException {
         if (!registro.isValid()) {
             throw new IllegalArgumentException("Faltan campos obligatorios en el registro.");
         }
 
-        // ✅ Validación corregida - solo verifica si el objeto especimen existe y está activo
-        // En un POST típico, el objeto especimen será null, solo tendrás los IDs
-        if (registro.getEspecimen() != null && !registro.getEspecimen().isActivo()) {
-            throw new IllegalArgumentException("El espécimen no está activo.");
+        // Validar que los IDs existen (aquí podrías agregar validaciones con otros repositories)
+        if (registro.getId_especimen() == null || registro.getId_especimen() <= 0) {
+            throw new IllegalArgumentException("ID de especimen inválido");
         }
 
-        // Otras reglas de negocio pueden agregarse aquí...
-        // Por ejemplo, validar que el id_especimen existe en la base de datos
+        if (registro.getId_origen_alta() == null || registro.getId_origen_alta() <= 0) {
+            throw new IllegalArgumentException("ID de origen alta inválido");
+        }
 
-        return repository.create(registro);
+        if (registro.getId_responsable() == null || registro.getId_responsable() <= 0) {
+            throw new IllegalArgumentException("ID de responsable inválido");
+        }
+
+        // ✅ CORREGIDO: Usar el método correcto del repository
+        return repository.saveRegister(registro);
     }
 
-    // OBTENER todos los registros con joins a especie, especimen, traslado
+    /**
+     * OBTENER todos los registros con joins
+     */
     public List<RegistroAlta> getAll() throws SQLException {
-        return repository.findAll();
+        // ✅ CORREGIDO: Usar el método correcto del repository
+        return repository.findAllRegisters();
     }
 
-    // OBTENER por ID
+    /**
+     * OBTENER por ID
+     */
     public RegistroAlta getById(Integer id) throws SQLException {
-        Optional<RegistroAlta> optional = repository.findById(id);
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("ID inválido");
+        }
+
+        // ✅ CORREGIDO: Usar el método correcto del repository
+        Optional<RegistroAlta> optional = repository.findRegistersById(id);
         return optional.orElseThrow(() -> new IllegalArgumentException("RegistroAlta no encontrado con ID: " + id));
     }
 
-    // ACTUALIZAR
+    /**
+     * ACTUALIZAR
+     */
     public RegistroAlta update(RegistroAlta registro) throws SQLException {
-        if (registro.getId_registro_alta() == null) {
+        if (registro.getId_registro_alta() == null || registro.getId_registro_alta() <= 0) {
             throw new IllegalArgumentException("ID del registro obligatorio para actualizar.");
         }
 
@@ -59,16 +73,41 @@ public class RegistroAltaService {
             throw new IllegalArgumentException("Faltan campos obligatorios.");
         }
 
-        return repository.update(registro);
+        // Verificar que el registro existe
+        Optional<RegistroAlta> existingOptional = repository.findRegistersById(registro.getId_registro_alta());
+        if (existingOptional.isEmpty()) {
+            throw new IllegalArgumentException("No existe el registro con ID: " + registro.getId_registro_alta());
+        }
+
+        // ✅ CORREGIDO: Usar el método correcto del repository
+        return repository.updateRegister(registro);
     }
 
-    // ELIMINAR
+    /**
+     * ELIMINAR
+     */
     public boolean delete(Integer id) throws SQLException {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("ID inválido");
+        }
+
+        // Verificar que el registro existe antes de eliminarlo
+        Optional<RegistroAlta> existingOptional = repository.findRegistersById(id);
+        if (existingOptional.isEmpty()) {
+            throw new IllegalArgumentException("No existe el registro con ID: " + id);
+        }
+
         return repository.delete(id);
     }
 
-    // FILTRAR por id_especimen
+    /**
+     * FILTRAR por id_especimen
+     */
     public List<RegistroAlta> getByEspecimen(Integer idEspecimen) throws SQLException {
+        if (idEspecimen == null || idEspecimen <= 0) {
+            throw new IllegalArgumentException("ID de especimen inválido");
+        }
+
         return repository.findByEspecimen(idEspecimen);
     }
 }

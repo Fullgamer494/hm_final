@@ -4,7 +4,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-group = 'org.alilopez'
+group = 'com.hugin_munin'
 version = '1.0-SNAPSHOT'
 
 repositories {
@@ -23,7 +23,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'org.alilopez.Main'
+    mainClass = 'com.hugin_munin.Main'
 }
 
 test {
