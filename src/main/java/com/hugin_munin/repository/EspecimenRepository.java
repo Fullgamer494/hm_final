@@ -8,10 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repositorio corregido para gestionar especímenes
+ */
 public class EspecimenRepository {
+
     /**
      * FIND ALL - Obtener todos los especímenes
-     **/
+     */
     public List<Especimen> findAllSpecimen() throws SQLException {
         List<Especimen> especimenes = new ArrayList<>();
         String query = "SELECT * FROM especimen ORDER BY id_especimen ASC";
@@ -29,8 +33,8 @@ public class EspecimenRepository {
     }
 
     /**
-     *  SAVE - Insertar nuevo espécimen
-     **/
+     * SAVE - Insertar nuevo espécimen
+     */
     public Especimen saveSpecimen(Especimen especimen) throws SQLException {
         String query = "INSERT INTO especimen (num_inventario, id_especie, nombre_especimen, activo) VALUES (?, ?, ?, ?)";
 
@@ -63,10 +67,10 @@ public class EspecimenRepository {
     }
 
     /**
-     * VALIDATE BY ID
-     **/
+     * VALIDATE BY ID - CORREGIDO: buscar en tabla especimen
+     */
     public boolean existsById(Integer id) throws SQLException {
-        String query = "SELECT COUNT(*) FROM especie WHERE id_especie = ?";
+        String query = "SELECT COUNT(*) FROM especimen WHERE id_especimen = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -80,8 +84,8 @@ public class EspecimenRepository {
     }
 
     /**
-     * VALIDATE BY INVENTARY NUM
-     **/
+     * VALIDATE BY INVENTORY NUM
+     */
     public boolean existsByIN(String numInv) throws SQLException {
         String query = "SELECT COUNT(*) FROM especimen WHERE num_inventario = ?";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -96,8 +100,28 @@ public class EspecimenRepository {
     }
 
     /**
+     * FIND BY ID - MÉTODO AGREGADO
+     */
+    public Optional<Especimen> findById(Integer id) throws SQLException {
+        String query = "SELECT * FROM especimen WHERE id_especimen = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToEspecimenes(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * MAP RESULTS
-     **/
+     */
     private Especimen mapResultSetToEspecimenes(ResultSet rs) throws SQLException {
         Especimen especimen = new Especimen();
         especimen.setId_especimen(rs.getInt("id_especimen"));

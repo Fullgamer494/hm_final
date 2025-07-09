@@ -5,8 +5,8 @@ import com.hugin_munin.model.RegistroAlta;
 import com.hugin_munin.model.Especimen;
 import com.hugin_munin.model.Especie;
 import com.hugin_munin.model.OrigenAlta;
-import com.hugin_munin.model.Usuario;
-import com.hugin_munin.model.Rol;
+import com.hugin_munin.model.Usuario;  // ← IMPORT AGREGADO
+import com.hugin_munin.model.Rol;      // ← IMPORT AGREGADO
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ import java.util.Date;
 
 /**
  * Repositorio para gestionar los registros de alta
- * Maneja todas las operaciones de base de datos con joins completos
+ * CORREGIDO: Imports agregados para Usuario y Rol
  */
 public class RegistroAltaRepository {
 

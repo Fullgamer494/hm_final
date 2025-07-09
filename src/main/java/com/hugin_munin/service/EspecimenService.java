@@ -2,26 +2,35 @@ package com.hugin_munin.service;
 
 import com.hugin_munin.model.Especimen;
 import com.hugin_munin.repository.EspecimenRepository;
+import com.hugin_munin.repository.EspecieRepository;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Optional;
 
+/**
+ * Servicio para gestionar especímenes
+ * Corregido para usar tanto EspecimenRepository como EspecieRepository
+ */
 public class EspecimenService {
-    private EspecimenRepository especimenRepository;
+    private final EspecimenRepository especimenRepository;
+    private final EspecieRepository especieRepository;
 
-    public EspecimenService(EspecimenRepository especimenRepository) { this.especimenRepository = especimenRepository; }
+    // Constructor corregido para aceptar ambos repositorios
+    public EspecimenService(EspecimenRepository especimenRepository, EspecieRepository especieRepository) {
+        this.especimenRepository = especimenRepository;
+        this.especieRepository = especieRepository;
+    }
 
     /**
      * GET ALL
-     **/
+     */
     public List<Especimen> getAllSpecimens() throws SQLException {
         return especimenRepository.findAllSpecimen();
     }
 
     /**
      * CREATE SPECIMEN
-     **/
+     */
     public Especimen createSpecimen(Especimen especimen) throws SQLException {
         validateSpecimenData(especimen);
 
@@ -29,7 +38,7 @@ public class EspecimenService {
             throw new IllegalArgumentException("El espécimen ya existe en la base de datos");
         }
         else if(especimenRepository.existsByIN(especimen.getNum_inventario())){
-            throw new IllegalArgumentException("El nùmero de inventario ya pertenece a un espécimen registrado");
+            throw new IllegalArgumentException("El número de inventario ya pertenece a un espécimen registrado");
         }
 
         especimen.setNum_inventario(especimen.getNum_inventario());
@@ -41,8 +50,8 @@ public class EspecimenService {
     }
 
     /**
-     * VALIDATE SPECIES DATA
-     **/
+     * VALIDATE SPECIMEN DATA
+     */
     private void validateSpecimenData(Especimen especimen) throws SQLException {
         if (especimen == null) {
             throw new IllegalArgumentException("El especimen no puede ser nulo");
@@ -56,9 +65,8 @@ public class EspecimenService {
             throw new IllegalArgumentException("El número de inventario no admite caracteres inválidos (sólo números, letras, guiones, puntos y hashtag)");
         }
 
-        
-
-        if (!especimenRepository.existsById(especimen.getId_especie())) {
+        // Corregir: usar especieRepository en lugar de especimenRepository
+        if (!especieRepository.existsById(especimen.getId_especie())) {
             throw new IllegalArgumentException("La especie indicada no existe");
         }
 
@@ -69,7 +77,7 @@ public class EspecimenService {
 
     /**
      * NORMALIZE TEXT
-     **/
+     */
     private String normalizeText(String text) {
         if (text == null || text.trim().isEmpty()) {
             return text;

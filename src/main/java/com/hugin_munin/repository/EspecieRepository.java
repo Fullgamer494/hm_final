@@ -8,10 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repositorio corregido para gestionar especies
+ */
 public class EspecieRepository {
+
     /**
      * FIND ALL
-     **/
+     */
     public List<Especie> findAllSpecies() throws SQLException {
         List<Especie> especies = new ArrayList<>();
         String query = "SELECT * FROM especie ORDER BY id_especie ASC";
@@ -30,7 +34,7 @@ public class EspecieRepository {
 
     /**
      * FIND BY SCIENTIFIC NAME
-     **/
+     */
     public List<Especie> findSpeciesByScientificName(String scientificName) throws SQLException {
         List<Especie> especies = new ArrayList<>();
         String query = "SELECT id_especie, genero, especie FROM especie WHERE CONCAT(genero, ' ', especie) LIKE ? ORDER BY genero, especie";
@@ -52,7 +56,7 @@ public class EspecieRepository {
 
     /**
      * SAVE
-     **/
+     */
     public Especie saveSpecie(Especie especie) throws SQLException {
         String query = "INSERT INTO especie (genero, especie) VALUES (?, ?)";
 
@@ -80,10 +84,9 @@ public class EspecieRepository {
         return especie;
     }
 
-
     /**
-     * CHECK IF SPECIE EXISTS
-     **/
+     * CHECK IF SPECIE EXISTS BY GENERO AND ESPECIE
+     */
     public boolean existsByGeneroAndEspecie(String genero, String especie) throws SQLException {
         String query = "SELECT COUNT(*) FROM especie WHERE genero = ? AND especie = ?";
 
@@ -104,8 +107,45 @@ public class EspecieRepository {
     }
 
     /**
+     * CHECK IF SPECIE EXISTS BY ID - MÉTODO AGREGADO
+     */
+    public boolean existsById(Integer id) throws SQLException {
+        String query = "SELECT COUNT(*) FROM especie WHERE id_especie = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
+    /**
+     * FIND BY ID - MÉTODO AGREGADO
+     */
+    public Optional<Especie> findById(Integer id) throws SQLException {
+        String query = "SELECT id_especie, genero, especie FROM especie WHERE id_especie = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToEspecie(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * MAP RESULTS
-     **/
+     */
     private Especie mapResultSetToEspecie(ResultSet rs) throws SQLException {
         Especie especie = new Especie();
         especie.setId_especie(rs.getInt("id_especie"));
