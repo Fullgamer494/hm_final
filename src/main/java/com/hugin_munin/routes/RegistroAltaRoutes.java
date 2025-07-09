@@ -12,10 +12,10 @@ public class RegistroAltaRoutes {
     }
 
     public void defineRoutes(Javalin app) {
-        app.get("/registro_alta", controller::getAll);
-        app.get("/registro_alta/{id}", controller::getById);
-        app.post("/registro_alta", controller::create);
-        app.put("/registro_alta/{id}", controller::update);
-        app.delete("/registro_alta/{id}", controller::delete);
+        app.get("/hm/registro_alta", controller::getAll);
+        app.get("/hm/registro_alta/{id}", controller::getById);
+        app.post("/hm/registro_alta", controller::create);
+        app.put("/hm/registro_alta/{id}", controller::update);
+        app.delete("/hm/registro_alta/{id}", controller::delete);
     }
 }

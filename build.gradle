@@ -7,25 +7,113 @@ plugins {
 group = 'com.hugin_munin'
 version = '1.0-SNAPSHOT'
 
+// Configuración de Java
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+// Configuración de encoding
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("io.javalin:javalin-bundle:6.6.0")
-    implementation("org.slf4j:slf4j-simple:2.0.16")
-    implementation("com.mysql:mysql-connector-j:9.3.0")
+    // Javalin - versión estable
+    implementation("io.javalin:javalin:6.1.3")
+
+    // Logging
+    implementation("org.slf4j:slf4j-simple:2.0.13")
+
+    // Base de datos - versiones estables
+    implementation("com.mysql:mysql-connector-j:8.4.0")
     implementation("com.zaxxer:HikariCP:5.1.0")
+
+    // JSON Processing
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.17.2")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.17.2")
+
+    // Environment variables
     implementation("io.github.cdimascio:dotenv-java:3.0.0")
+
+    // Testing
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine'
 }
 
 application {
     mainClass = 'com.hugin_munin.Main'
+    applicationDefaultJvmArgs = [
+            '-Dfile.encoding=UTF-8',
+            '-Djava.awt.headless=true'
+    ]
 }
 
 test {
     useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+// Configuración del JAR
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'com.hugin_munin.Main'
+        )
+    }
+}
+
+// Configuración del Shadow JAR (JAR con dependencias)
+shadowJar {
+    archiveBaseName = 'hugin-munin'
+    archiveClassifier = ''
+    manifest {
+        attributes(
+                'Main-Class': 'com.hugin_munin.Main'
+        )
+    }
+
+    // Evitar conflictos de archivos duplicados
+    mergeServiceFiles()
+
+    // Excluir archivos innecesarios
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+// Tareas personalizadas para debugging
+tasks.register('runWithDebug', JavaExec) {
+    group = 'application'
+    description = 'Run the application with debug output'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.hugin_munin.Main'
+
+    jvmArgs = [
+            '-Xdebug',
+            '-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005',
+            '-Dfile.encoding=UTF-8'
+    ]
+
+    // Mostrar output en tiempo real
+    standardOutput = System.out
+    errorOutput = System.err
+}
+
+// Configurar run task para mostrar output
+run {
+    standardOutput = System.out
+    errorOutput = System.err
+
+    // Pasar argumentos del sistema
+    systemProperties = System.getProperties()
 }

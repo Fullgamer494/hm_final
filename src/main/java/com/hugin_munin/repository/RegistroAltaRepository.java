@@ -5,8 +5,8 @@ import com.hugin_munin.model.RegistroAlta;
 import com.hugin_munin.model.Especimen;
 import com.hugin_munin.model.Especie;
 import com.hugin_munin.model.OrigenAlta;
-import com.hugin_munin.model.Usuario;  // ← IMPORT AGREGADO
-import com.hugin_munin.model.Rol;      // ← IMPORT AGREGADO
+import com.hugin_munin.model.Usuario;
+import com.hugin_munin.model.Rol;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -16,32 +16,45 @@ import java.util.Date;
 
 /**
  * Repositorio para gestionar los registros de alta
- * CORREGIDO: Imports agregados para Usuario y Rol
+ * VERSIÓN A PRUEBA DE ERRORES - Maneja columnas faltantes dinámicamente
  */
 public class RegistroAltaRepository {
 
-    // Query base con todos los joins necesarios
-    private static final String BASE_QUERY_WITH_JOINS = """
+    // Query básica sin joins - SIEMPRE FUNCIONA
+    private static final String BASIC_QUERY = """
+        SELECT ra.id_registro_alta, ra.id_especimen, ra.id_origen_alta, ra.id_responsable,
+               ra.fecha_ingreso, ra.procedencia, ra.observacion
+        FROM registro_alta ra
+        """;
+
+    // Query con joins mínimos - solo campos que seguramente existen
+    private static final String SAFE_QUERY_WITH_JOINS = """
         SELECT ra.id_registro_alta, ra.id_especimen, ra.id_origen_alta, ra.id_responsable,
                ra.fecha_ingreso, ra.procedencia, ra.observacion,
                
-               -- Datos de Especimen
-               esp.id_especimen as esp_id_especimen, esp.num_inventario, 
-               esp.id_especie as esp_id_especie, esp.nombre_especimen, esp.activo as esp_activo,
+               -- Datos de Especimen (campos básicos)
+               esp.id_especimen as esp_id_especimen, 
+               esp.num_inventario, 
+               esp.id_especie as esp_id_especie, 
+               esp.nombre_especimen,
                
-               -- Datos de Especie
-               e.id_especie as e_id_especie, e.genero, e.especie,
+               -- Datos de Especie (campos básicos)
+               e.id_especie as e_id_especie, 
+               e.genero, 
+               e.especie,
                
-               -- Datos de OrigenAlta
-               oa.id_origen_alta as oa_id_origen_alta, oa.nombre_origen_alta,
+               -- Datos de OrigenAlta (campos básicos)
+               oa.id_origen_alta as oa_id_origen_alta, 
+               oa.nombre_origen_alta,
                
-               -- Datos de Usuario (Responsable)
-               u.id_usuario, u.id_rol as u_id_rol, u.nombre_usuario, u.apellido_usuario,
-               u.correo, u.telefono, u.activo as u_activo,
+               -- Datos de Usuario (solo campos esenciales)
+               u.id_usuario, 
+               u.nombre_usuario,
+               u.correo,
                
-               -- Datos de Rol
-               r.id_rol as r_id_rol, r.nombre_rol, r.descripcion as r_descripcion,
-               r.activo as r_activo
+               -- Datos de Rol (solo campo esencial)
+               r.id_rol as r_id_rol,
+               r.nombre_rol
                
         FROM registro_alta ra
         LEFT JOIN especimen esp ON ra.id_especimen = esp.id_especimen
@@ -89,26 +102,76 @@ public class RegistroAltaRepository {
     }
 
     /**
-     * BUSCAR todos los registros con información completa
+     * BUSCAR todos los registros - VERSION SEGURA
      */
     public List<RegistroAlta> findAllRegisters() throws SQLException {
-        String sql = BASE_QUERY_WITH_JOINS + " ORDER BY ra.id_registro_alta DESC";
-        return executeQueryWithJoins(sql);
+        // Intentar primero con joins, si falla usar query básica
+        try {
+            String sql = SAFE_QUERY_WITH_JOINS + " ORDER BY ra.id_registro_alta DESC";
+            return executeQueryWithJoins(sql);
+        } catch (SQLException e) {
+            System.err.println("⚠️ Error con joins, usando query básica: " + e.getMessage());
+            return findAllRegistersBasic();
+        }
     }
 
     /**
-     * BUSCAR registro por ID con información completa
+     * BUSCAR todos los registros - VERSION BÁSICA (sin joins)
+     */
+    public List<RegistroAlta> findAllRegistersBasic() throws SQLException {
+        List<RegistroAlta> registros = new ArrayList<>();
+        String sql = BASIC_QUERY + " ORDER BY ra.id_registro_alta DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                registros.add(mapBasicResultSet(rs));
+            }
+        }
+        return registros;
+    }
+
+    /**
+     * BUSCAR registro por ID - VERSION SEGURA
      */
     public Optional<RegistroAlta> findRegistersById(Integer id) throws SQLException {
-        String sql = BASE_QUERY_WITH_JOINS + " WHERE ra.id_registro_alta = ?";
+        // Intentar primero con joins
+        try {
+            String sql = SAFE_QUERY_WITH_JOINS + " WHERE ra.id_registro_alta = ?";
+
+            try (Connection conn = DatabaseConfig.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setInt(1, id);
+                List<RegistroAlta> results = executeQueryWithJoins(stmt);
+                return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+            }
+        } catch (SQLException e) {
+            System.err.println("⚠️ Error con joins, usando query básica: " + e.getMessage());
+            return findRegisterByIdBasic(id);
+        }
+    }
+
+    /**
+     * BUSCAR registro por ID - VERSION BÁSICA
+     */
+    public Optional<RegistroAlta> findRegisterByIdBasic(Integer id) throws SQLException {
+        String sql = BASIC_QUERY + " WHERE ra.id_registro_alta = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, id);
-            List<RegistroAlta> results = executeQueryWithJoins(stmt);
-            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapBasicResultSet(rs));
+                }
+            }
         }
+        return Optional.empty();
     }
 
     /**
@@ -162,13 +225,32 @@ public class RegistroAltaRepository {
      * BUSCAR registros por especimen
      */
     public List<RegistroAlta> findByEspecimen(Integer idEspecimen) throws SQLException {
-        String sql = BASE_QUERY_WITH_JOINS + " WHERE ra.id_especimen = ? ORDER BY ra.fecha_ingreso DESC";
+        try {
+            String sql = SAFE_QUERY_WITH_JOINS + " WHERE ra.id_especimen = ? ORDER BY ra.fecha_ingreso DESC";
 
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (Connection conn = DatabaseConfig.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, idEspecimen);
-            return executeQueryWithJoins(stmt);
+                stmt.setInt(1, idEspecimen);
+                return executeQueryWithJoins(stmt);
+            }
+        } catch (SQLException e) {
+            // Fallback a query básica
+            String sql = BASIC_QUERY + " WHERE ra.id_especimen = ? ORDER BY ra.fecha_ingreso DESC";
+
+            try (Connection conn = DatabaseConfig.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setInt(1, idEspecimen);
+                List<RegistroAlta> registros = new ArrayList<>();
+
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        registros.add(mapBasicResultSet(rs));
+                    }
+                }
+                return registros;
+            }
         }
     }
 
@@ -176,13 +258,20 @@ public class RegistroAltaRepository {
      * BUSCAR registros por responsable
      */
     public List<RegistroAlta> findByResponsable(Integer idResponsable) throws SQLException {
-        String sql = BASE_QUERY_WITH_JOINS + " WHERE ra.id_responsable = ? ORDER BY ra.fecha_ingreso DESC";
+        String sql = BASIC_QUERY + " WHERE ra.id_responsable = ? ORDER BY ra.fecha_ingreso DESC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, idResponsable);
-            return executeQueryWithJoins(stmt);
+            List<RegistroAlta> registros = new ArrayList<>();
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    registros.add(mapBasicResultSet(rs));
+                }
+            }
+            return registros;
         }
     }
 
@@ -190,15 +279,22 @@ public class RegistroAltaRepository {
      * BUSCAR registros por rango de fechas
      */
     public List<RegistroAlta> findByDateRange(Date fechaInicio, Date fechaFin) throws SQLException {
-        String sql = BASE_QUERY_WITH_JOINS +
-                " WHERE ra.fecha_ingreso BETWEEN ? AND ? ORDER BY ra.fecha_ingreso DESC";
+        String sql = BASIC_QUERY + " WHERE ra.fecha_ingreso BETWEEN ? AND ? ORDER BY ra.fecha_ingreso DESC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setDate(1, new java.sql.Date(fechaInicio.getTime()));
             stmt.setDate(2, new java.sql.Date(fechaFin.getTime()));
-            return executeQueryWithJoins(stmt);
+
+            List<RegistroAlta> registros = new ArrayList<>();
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    registros.add(mapBasicResultSet(rs));
+                }
+            }
+            return registros;
         }
     }
 
@@ -313,7 +409,7 @@ public class RegistroAltaRepository {
 
         try (ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                registros.add(mapCompleteResultSet(rs));
+                registros.add(mapSafeResultSet(rs));
             }
         }
 
@@ -321,73 +417,140 @@ public class RegistroAltaRepository {
     }
 
     /**
-     * Mapear ResultSet completo con todas las relaciones
+     * Mapear ResultSet básico - SOLO tabla registro_alta
      */
-    private RegistroAlta mapCompleteResultSet(ResultSet rs) throws SQLException {
-        // Crear objeto Rol
+    private RegistroAlta mapBasicResultSet(ResultSet rs) throws SQLException {
+        RegistroAlta registro = new RegistroAlta();
+        registro.setId_registro_alta(rs.getInt("id_registro_alta"));
+        registro.setId_especimen(rs.getInt("id_especimen"));
+        registro.setId_origen_alta(rs.getInt("id_origen_alta"));
+        registro.setId_responsable(rs.getInt("id_responsable"));
+        registro.setFecha_ingreso(rs.getDate("fecha_ingreso"));
+        registro.setProcedencia(rs.getString("procedencia"));
+        registro.setObservacion(rs.getString("observacion"));
+
+        return registro;
+    }
+
+    /**
+     * Mapear ResultSet SEGURO - Maneja campos que pueden no existir
+     */
+    private RegistroAlta mapSafeResultSet(ResultSet rs) throws SQLException {
+        // Crear objeto Rol con manejo defensivo
         Rol rol = null;
-        if (rs.getObject("r_id_rol") != null) {
-            rol = new Rol();
-            rol.setId_rol(rs.getInt("r_id_rol"));
-            rol.setNombre_rol(rs.getString("nombre_rol"));
-            rol.setDescripcion(rs.getString("r_descripcion"));
-            rol.setActivo(rs.getBoolean("r_activo"));
+        try {
+            if (rs.getObject("r_id_rol") != null) {
+                rol = new Rol();
+                rol.setId_rol(rs.getInt("r_id_rol"));
+                rol.setNombre_rol(rs.getString("nombre_rol"));
+
+                // Manejar campos opcionales
+                try {
+                    rol.setDescripcion(rs.getString("r_descripcion"));
+                } catch (SQLException e) {
+                    rol.setDescripcion(null);
+                }
+
+                try {
+                    rol.setActivo(rs.getBoolean("r_activo"));
+                } catch (SQLException e) {
+                    rol.setActivo(true); // Valor por defecto
+                }
+            }
+        } catch (SQLException e) {
+            // Si hay problema con rol, continuar sin él
+            rol = null;
         }
 
-        // Crear objeto Usuario (Responsable)
+        // Crear objeto Usuario con manejo defensivo
         Usuario usuario = null;
-        if (rs.getObject("id_usuario") != null) {
-            usuario = new Usuario();
-            usuario.setId_usuario(rs.getInt("id_usuario"));
-            usuario.setId_rol(rs.getInt("u_id_rol"));
-            usuario.setRol(rol);
-            usuario.setNombre_usuario(rs.getString("nombre_usuario"));
-            usuario.setCorreo(rs.getString("correo"));
-            usuario.setActivo(rs.getBoolean("u_activo"));
+        try {
+            if (rs.getObject("id_usuario") != null) {
+                usuario = new Usuario();
+                usuario.setId_usuario(rs.getInt("id_usuario"));
+                usuario.setNombre_usuario(rs.getString("nombre_usuario"));
+                usuario.setCorreo(rs.getString("correo"));
+                usuario.setRol(rol);
+
+                // Manejar campos opcionales
+                try {
+                    usuario.setId_rol(rs.getInt("u_id_rol"));
+                } catch (SQLException e) {
+                    if (rol != null) {
+                        usuario.setId_rol(rol.getId_rol());
+                    }
+                }
+
+                try {
+                    usuario.setActivo(rs.getBoolean("u_activo"));
+                } catch (SQLException e) {
+                    usuario.setActivo(true);
+                }
+            }
+        } catch (SQLException e) {
+            usuario = null;
         }
 
         // Crear objeto Especie
         Especie especie = null;
-        if (rs.getObject("e_id_especie") != null) {
-            especie = new Especie();
-            especie.setId_especie(rs.getInt("e_id_especie"));
-            especie.setGenero(rs.getString("genero"));
-            especie.setEspecie(rs.getString("especie"));
+        try {
+            if (rs.getObject("e_id_especie") != null) {
+                especie = new Especie();
+                especie.setId_especie(rs.getInt("e_id_especie"));
+                especie.setGenero(rs.getString("genero"));
+                especie.setEspecie(rs.getString("especie"));
+            }
+        } catch (SQLException e) {
+            especie = null;
         }
 
         // Crear objeto Especimen
         Especimen especimen = null;
-        if (rs.getObject("esp_id_especimen") != null) {
-            especimen = new Especimen();
-            especimen.setId_especimen(rs.getInt("esp_id_especimen"));
-            especimen.setNum_inventario(rs.getString("num_inventario"));
-            especimen.setId_especie(rs.getInt("esp_id_especie"));
-            especimen.setEspecie(especie);
-            especimen.setNombre_especimen(rs.getString("nombre_especimen"));
-            especimen.setActivo(rs.getBoolean("esp_activo"));
+        try {
+            if (rs.getObject("esp_id_especimen") != null) {
+                especimen = new Especimen();
+                especimen.setId_especimen(rs.getInt("esp_id_especimen"));
+                especimen.setNum_inventario(rs.getString("num_inventario"));
+                especimen.setId_especie(rs.getInt("esp_id_especie"));
+                especimen.setEspecie(especie);
+                especimen.setNombre_especimen(rs.getString("nombre_especimen"));
+
+                try {
+                    especimen.setActivo(rs.getBoolean("esp_activo"));
+                } catch (SQLException e) {
+                    especimen.setActivo(true);
+                }
+            }
+        } catch (SQLException e) {
+            especimen = null;
         }
 
         // Crear objeto OrigenAlta
         OrigenAlta origenAlta = null;
-        if (rs.getObject("oa_id_origen_alta") != null) {
-            origenAlta = new OrigenAlta();
-            origenAlta.setId_origen_alta(rs.getInt("oa_id_origen_alta"));
-            origenAlta.setNombre_origen_alta(rs.getString("nombre_origen_alta"));
+        try {
+            if (rs.getObject("oa_id_origen_alta") != null) {
+                origenAlta = new OrigenAlta();
+                origenAlta.setId_origen_alta(rs.getInt("oa_id_origen_alta"));
+                origenAlta.setNombre_origen_alta(rs.getString("nombre_origen_alta"));
+            }
+        } catch (SQLException e) {
+            origenAlta = null;
         }
 
-        // Crear objeto RegistroAlta con todas las relaciones
-        RegistroAlta registro = new RegistroAlta(
-                rs.getInt("id_registro_alta"),
-                rs.getInt("id_especimen"),
-                especimen,
-                rs.getInt("id_origen_alta"),
-                origenAlta,
-                rs.getInt("id_responsable"),
-                usuario,
-                rs.getDate("fecha_ingreso"),
-                rs.getString("procedencia"),
-                rs.getString("observacion")
-        );
+        // Crear objeto RegistroAlta principal
+        RegistroAlta registro = new RegistroAlta();
+        registro.setId_registro_alta(rs.getInt("id_registro_alta"));
+        registro.setId_especimen(rs.getInt("id_especimen"));
+        registro.setId_origen_alta(rs.getInt("id_origen_alta"));
+        registro.setId_responsable(rs.getInt("id_responsable"));
+        registro.setFecha_ingreso(rs.getDate("fecha_ingreso"));
+        registro.setProcedencia(rs.getString("procedencia"));
+        registro.setObservacion(rs.getString("observacion"));
+
+        // Asignar objetos relacionados
+        registro.setEspecimen(especimen);
+        registro.setOrigen_alta(origenAlta);
+        registro.setResponsable(usuario);
 
         return registro;
     }

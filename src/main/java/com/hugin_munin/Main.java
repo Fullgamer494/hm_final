@@ -20,39 +20,69 @@ public class Main {
     private static final String API_NAME = "Hugin Munin API";
 
     public static void main(String[] args) {
-        // Mostrar información del módulo
-        AppModule.printModuleInfo();
+        try {
+            System.out.println("🚀 Iniciando " + API_NAME + " v" + API_VERSION);
 
-        // Crear aplicación Javalin
-        Javalin app = Javalin.create(config -> {
-            // Configurar CORS
-            config.bundledPlugins.enableCors(cors -> {
-                cors.addRule(it -> {
-                    it.anyHost();
-                    it.allowCredentials = true;
+            // Verificar conexión a base de datos primero
+            testDatabaseConnection();
+
+            // Mostrar información del módulo
+            AppModule.printModuleInfo();
+
+            // Crear aplicación Javalin
+            Javalin app = Javalin.create(config -> {
+                // Configurar CORS
+                config.bundledPlugins.enableCors(cors -> {
+                    cors.addRule(it -> {
+                        it.anyHost();
+                        it.allowCredentials = true;
+                    });
                 });
+
+                // Configurar logging
+                config.bundledPlugins.enableRouteOverview("/routes");
+                config.http.defaultContentType = "application/json";
             });
 
-            // Configurar logging
-            config.bundledPlugins.enableRouteOverview("/routes");
-            config.http.defaultContentType = "application/json";
-        });
+            // Configurar rutas principales
+            setupMainRoutes(app);
 
-        // Configurar rutas principales
-        setupMainRoutes(app);
+            // Configurar rutas de módulos
+            setupModuleRoutes(app);
 
-        // Configurar rutas de módulos
-        setupModuleRoutes(app);
+            // Iniciar servidor
+            app.start(7000);
 
-        // Iniciar servidor
-        app.start(7000);
+            System.out.println("\n🚀 " + API_NAME + " v" + API_VERSION);
+            System.out.println("📡 Servidor iniciado en: http://localhost:7000");
+            System.out.println("🔗 Health Check: http://localhost:7000/");
+            System.out.println("📊 Test DB: http://localhost:7000/hm/test-db");
+            System.out.println("📚 Documentación: http://localhost:7000/hm/docs");
+            System.out.println("===============================================\n");
 
-        System.out.println("\n🚀 " + API_NAME + " v" + API_VERSION);
-        System.out.println("📡 Servidor iniciado en: http://localhost:7000");
-        System.out.println("🔗 Health Check: http://localhost:7000/");
-        System.out.println("📊 Test DB: http://localhost:7000/hm/test-db");
-        System.out.println("📚 Documentación: http://localhost:7000/hm/docs");
-        System.out.println("===============================================\n");
+        } catch (Exception e) {
+            System.err.println("❌ Error al iniciar la aplicación:");
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    /**
+     * TEST DE CONEXIÓN A BASE DE DATOS AL INICIO
+     */
+    private static void testDatabaseConnection() {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            System.out.println("✅ Conexión a base de datos verificada exitosamente");
+        } catch (Exception e) {
+            System.err.println("❌ ERROR: No se pudo conectar a la base de datos");
+            System.err.println("Detalle del error: " + e.getMessage());
+            System.err.println("\nVerifica que:");
+            System.err.println("1. MySQL esté ejecutándose");
+            System.err.println("2. La base de datos HUGIN_MUNIN exista");
+            System.err.println("3. Las credenciales en .env sean correctas");
+            System.err.println("4. El archivo .env exista en la raíz del proyecto");
+            throw new RuntimeException("Error de conexión a base de datos", e);
+        }
     }
 
     /**
@@ -73,7 +103,7 @@ public class Main {
         });
 
         // Test de conexión a base de datos
-        app.get("/hm/test-db", ctx -> testDatabaseConnection(ctx));
+        app.get("/hm/test-db", ctx -> testDatabaseConnectionEndpoint(ctx));
 
         // Documentación de API
         app.get("/hm/docs", ctx -> {
@@ -131,26 +161,32 @@ public class Main {
      * CONFIGURAR RUTAS DE MÓDULOS
      */
     private static void setupModuleRoutes(Javalin app) {
+        try {
+            // Rutas de Especies
+            AppModule.initSpecies().defineRoutes(app);
 
-        // Rutas de Especies
-        AppModule.initSpecies().defineRoutes(app);
+            // Rutas de Especímenes
+            AppModule.initSpecimens().defineRoutes(app);
 
-        // Rutas de Especímenes
-        AppModule.initSpecimens().defineRoutes(app);
+            // Rutas de Registros de Alta
+            AppModule.initRegistroAlta().defineRoutes(app);
 
-        // Rutas de Registros de Alta
-        AppModule.initRegistroAlta().defineRoutes(app);
+            System.out.println("✅ Rutas configuradas:");
+            System.out.println("   - Especies: /hm/especies/*");
+            System.out.println("   - Especímenes: /hm/especimenes/*");
+            System.out.println("   - Registros Alta: /registro_alta/*");
 
-        System.out.println("✅ Rutas configuradas:");
-        System.out.println("   - Especies: /hm/especies/*");
-        System.out.println("   - Especímenes: /hm/especimenes/*");
-        System.out.println("   - Registros Alta: /registro_alta/*");
+        } catch (Exception e) {
+            System.err.println("❌ Error al configurar rutas de módulos:");
+            e.printStackTrace();
+            throw new RuntimeException("Error en configuración de rutas", e);
+        }
     }
 
     /**
      * TEST DE CONEXIÓN A BASE DE DATOS
      */
-    private static void testDatabaseConnection(Context ctx) {
+    private static void testDatabaseConnectionEndpoint(Context ctx) {
         try (Connection conn = DatabaseConfig.getConnection()) {
             Map<String, Object> result = new HashMap<>();
             result.put("database_status", "CONECTADO");
