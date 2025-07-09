@@ -2,11 +2,14 @@ package com.hugin_munin.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Objects;
 
+/**
+ * Modelo Usuario simplificado
+ * Se enfoca en campos esenciales para evitar problemas
+ */
 public class Usuario {
-    // Atributos usando JsonProperty para indicar el formato de las llaves del .json
+
     @JsonProperty("id_usuario")
     private Integer id_usuario;
 
@@ -14,7 +17,7 @@ public class Usuario {
     private Integer id_rol;
 
     @JsonProperty("rol")
-    private Rol rol;
+    private Rol rol;  // Para joins opcionales
 
     @JsonProperty("nombre_usuario")
     private String nombre_usuario;
@@ -41,7 +44,8 @@ public class Usuario {
         this.activo = true;
     }
 
-    public Usuario(Integer id_usuario, Integer id_rol, String nombre_usuario, String correo, String contrasena, boolean activo) {
+    public Usuario(Integer id_usuario, Integer id_rol, String nombre_usuario,
+                   String correo, String contrasena, boolean activo) {
         this.id_usuario = id_usuario;
         this.id_rol = id_rol;
         this.nombre_usuario = nombre_usuario;
@@ -121,21 +125,26 @@ public class Usuario {
         return Objects.hash(id_usuario);
     }
 
-    // Validaciones
+    /**
+     * Validar si el usuario tiene los datos mínimos requeridos
+     */
     public boolean isValid() {
         return nombre_usuario != null && !nombre_usuario.trim().isEmpty() &&
                 correo != null && !correo.trim().isEmpty() &&
-                contrasena != null && !contrasena.trim().isEmpty() &&
                 id_rol != null && id_rol > 0;
     }
 
-    // Validar email
+    /**
+     * Validar formato básico de email
+     */
     public boolean hasValidEmail() {
         if (correo == null) return false;
         return correo.contains("@") && correo.contains(".") && correo.length() > 5;
     }
 
-    // Información para mostrar
+    /**
+     * Información para mostrar con rol (si está disponible)
+     */
     public String getDisplayInfo() {
         if (rol != null) {
             return String.format("%s (%s)", nombre_usuario, rol.getNombre_rol());

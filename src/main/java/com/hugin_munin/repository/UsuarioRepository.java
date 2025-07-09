@@ -2,15 +2,22 @@ package com.hugin_munin.repository;
 
 import com.hugin_munin.config.DatabaseConfig;
 import com.hugin_munin.model.Usuario;
+import com.hugin_munin.model.Rol;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
+/**
+ * Repositorio para gestionar usuarios
+ * Versión corregida y simplificada
+ */
 public class UsuarioRepository {
 
     /**
-     * FIND ALL USERS
+     * BUSCAR todos los usuarios (sin joins inicialmente)
      */
     public List<Usuario> findAll() throws SQLException {
         List<Usuario> usuarios = new ArrayList<>();
@@ -29,7 +36,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * FIND BY ID
+     * BUSCAR usuario por ID
      */
     public Usuario findById(Integer id) throws SQLException {
         String query = "SELECT id_usuario, id_rol, nombre_usuario, correo, contrasena, activo FROM usuario WHERE id_usuario = ?";
@@ -49,7 +56,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * FIND BY EMAIL
+     * BUSCAR usuario por email
      */
     public Usuario findByEmail(String correo) throws SQLException {
         String query = "SELECT id_usuario, id_rol, nombre_usuario, correo, contrasena, activo FROM usuario WHERE correo = ?";
@@ -69,7 +76,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * FIND BY NAME - Búsqueda por nombre
+     * BUSCAR usuarios por nombre
      */
     public List<Usuario> findByName(String nombre) throws SQLException {
         List<Usuario> usuarios = new ArrayList<>();
@@ -90,7 +97,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * SAVE - INSERT nuevo usuario
+     * GUARDAR nuevo usuario
      */
     public Usuario save(Usuario usuario) throws SQLException {
         String query = "INSERT INTO usuario (id_rol, nombre_usuario, correo, contrasena, activo) VALUES (?, ?, ?, ?, ?)";
@@ -123,7 +130,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * UPDATE - Actualizar usuario existente
+     * ACTUALIZAR usuario existente
      */
     public boolean update(Usuario usuario) throws SQLException {
         String query = "UPDATE usuario SET id_rol = ?, nombre_usuario = ?, correo = ?, contrasena = ?, activo = ? WHERE id_usuario = ?";
@@ -143,7 +150,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * DELETE BY ID
+     * ELIMINAR usuario por ID
      */
     public boolean deleteById(Integer id) throws SQLException {
         String query = "DELETE FROM usuario WHERE id_usuario = ?";
@@ -157,7 +164,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * EXISTS BY ID
+     * VERIFICAR si existe usuario por ID
      */
     public boolean existsById(Integer id) throws SQLException {
         String query = "SELECT COUNT(*) FROM usuario WHERE id_usuario = ?";
@@ -174,7 +181,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * EXISTS BY EMAIL
+     * VERIFICAR si existe usuario por email
      */
     public boolean existsByEmail(String correo) throws SQLException {
         String query = "SELECT COUNT(*) FROM usuario WHERE correo = ?";
@@ -191,7 +198,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * COUNT TOTAL USERS
+     * CONTAR total de usuarios
      */
     public int countTotal() throws SQLException {
         String query = "SELECT COUNT(*) FROM usuario";
@@ -208,7 +215,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * COUNT ACTIVE USERS
+     * CONTAR usuarios activos
      */
     public int countActive() throws SQLException {
         String query = "SELECT COUNT(*) FROM usuario WHERE activo = TRUE";
@@ -225,7 +232,7 @@ public class UsuarioRepository {
     }
 
     /**
-     * MAP RESULTSET TO USUARIO
+     * MAPEAR ResultSet a objeto Usuario (version simplificada)
      */
     private Usuario mapResultSetToUsuario(ResultSet rs) throws SQLException {
         Usuario usuario = new Usuario();

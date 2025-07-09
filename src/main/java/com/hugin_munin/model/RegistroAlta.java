@@ -171,20 +171,4 @@ public class RegistroAlta {
     public boolean isValid() {
         return id_especimen != null && id_origen_alta != null && id_responsable != null && fecha_ingreso != null && procedencia != null && observacion != null;
     }
-
-    @Override
-    public String toString() {
-        return "RegistroAlta{" +
-                "id_registro_alta=" + id_registro_alta +
-                ", id_especimen=" + id_especimen +
-                ", especimen=" + especimen +
-                ", id_origen_alta=" + id_origen_alta +
-                ", origen_alta=" + origen_alta +
-                ", id_responsable=" + id_responsable +
-                ", responsable=" + responsable +
-                ", fecha_ingreso=" + fecha_ingreso +
-                ", procedencia='" + procedencia + '\'' +
-                ", observacion='" + observacion + '\'' +
-                '}';
-    }
 }
