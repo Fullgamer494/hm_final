@@ -158,10 +158,22 @@ public class Main {
     }
 
     /**
-     * CONFIGURAR RUTAS DE MÓDULOS
+     * CONFIGURAR RUTAS DE MÓDULOS - ACTUALIZADO
      */
     private static void setupModuleRoutes(Javalin app) {
         try {
+            // Rutas de Roles
+            AppModule.initRoles().defineRoutes(app);
+
+            // Rutas de Usuarios
+            AppModule.initUsuarios().defineRoutes(app);
+
+            // Rutas de Origen Alta
+            AppModule.initOrigenAlta().defineRoutes(app);
+
+            // Rutas de Causa Baja
+            AppModule.initCausaBaja().defineRoutes(app);
+
             // Rutas de Especies
             AppModule.initSpecies().defineRoutes(app);
 
@@ -171,10 +183,18 @@ public class Main {
             // Rutas de Registros de Alta
             AppModule.initRegistroAlta().defineRoutes(app);
 
+            // Rutas de Registros de Baja
+            AppModule.initRegistroBaja().defineRoutes(app);
+
             System.out.println("✅ Rutas configuradas:");
+            System.out.println("   - Roles: /hm/roles/*");
+            System.out.println("   - Usuarios: /hm/usuarios/*");
+            System.out.println("   - Origen Alta: /hm/origenes-alta/*");
+            System.out.println("   - Causa Baja: /hm/causas-baja/*");
             System.out.println("   - Especies: /hm/especies/*");
             System.out.println("   - Especímenes: /hm/especimenes/*");
-            System.out.println("   - Registros Alta: /registro_alta/*");
+            System.out.println("   - Registros Alta: /hm/registro_alta/*");
+            System.out.println("   - Registros Baja: /hm/registro_baja/*");
 
         } catch (Exception e) {
             System.err.println("❌ Error al configurar rutas de módulos:");

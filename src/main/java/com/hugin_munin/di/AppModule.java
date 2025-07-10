@@ -46,6 +46,17 @@ public class AppModule {
     }
 
     /**
+     * INICIALIZAR MÓDULO DE CAUSA BAJA
+     */
+    public static CausaBajaRoutes initCausaBaja() {
+        CausaBajaRepository causaBajaRepository = new CausaBajaRepository();
+        CausaBajaService causaBajaService = new CausaBajaService(causaBajaRepository);
+        CausaBajaController causaBajaController = new CausaBajaController(causaBajaService);
+
+        return new CausaBajaRoutes(causaBajaController);
+    }
+
+    /**
      * INICIALIZAR MÓDULO DE ESPECIES
      */
     public static EspecieRoutes initSpecies() {
@@ -76,7 +87,6 @@ public class AppModule {
         RegistroAltaRepository registroAltaRepository = new RegistroAltaRepository();
         EspecimenRepository especimenRepository = new EspecimenRepository();
         UsuarioRepository usuarioRepository = new UsuarioRepository();
-        OrigenAltaRepository origenAltaRepository = new OrigenAltaRepository();
 
         // Inicializar servicio con todas las dependencias
         RegistroAltaService registroAltaService = new RegistroAltaService(
@@ -89,6 +99,30 @@ public class AppModule {
         RegistroAltaController registroAltaController = new RegistroAltaController(registroAltaService);
 
         return new RegistroAltaRoutes(registroAltaController);
+    }
+
+    /**
+     * INICIALIZAR MÓDULO DE REGISTRO BAJA CON TODAS LAS DEPENDENCIAS
+     */
+    public static RegistroBajaRoutes initRegistroBaja() {
+        // Inicializar repositorios
+        RegistroBajaRepository registroBajaRepository = new RegistroBajaRepository();
+        EspecimenRepository especimenRepository = new EspecimenRepository();
+        UsuarioRepository usuarioRepository = new UsuarioRepository();
+        CausaBajaRepository causaBajaRepository = new CausaBajaRepository();
+
+        // Inicializar servicio con todas las dependencias
+        RegistroBajaService registroBajaService = new RegistroBajaService(
+                registroBajaRepository,
+                especimenRepository,
+                usuarioRepository,
+                causaBajaRepository
+        );
+
+        // Inicializar controlador
+        RegistroBajaController registroBajaController = new RegistroBajaController(registroBajaService);
+
+        return new RegistroBajaRoutes(registroBajaController);
     }
 
     /**
@@ -105,6 +139,9 @@ public class AppModule {
         System.out.println("✅ Módulo OrigenAlta:");
         System.out.println("   OrigenAltaRepository -> OrigenAltaService -> OrigenAltaController");
 
+        System.out.println("✅ Módulo CausaBaja:");
+        System.out.println("   CausaBajaRepository -> CausaBajaService -> CausaBajaController");
+
         System.out.println("✅ Módulo Especie:");
         System.out.println("   EspecieRepository -> EspecieService -> EspecieController");
 
@@ -114,6 +151,10 @@ public class AppModule {
         System.out.println("✅ Módulo RegistroAlta:");
         System.out.println("   [RegistroAltaRepository, EspecimenRepository, UsuarioRepository]");
         System.out.println("   -> RegistroAltaService -> RegistroAltaController");
+
+        System.out.println("✅ Módulo RegistroBaja:");
+        System.out.println("   [RegistroBajaRepository, EspecimenRepository, UsuarioRepository, CausaBajaRepository]");
+        System.out.println("   -> RegistroBajaService -> RegistroBajaController");
 
         System.out.println("==========================================================");
         System.out.println("📋 Patrón implementado: Repository -> Service -> Controller");
@@ -129,25 +170,31 @@ public class AppModule {
         private final RolRoutes rolRoutes;
         private final UsuarioRoutes usuarioRoutes;
         private final OrigenAltaRoutes origenAltaRoutes;
+        private final CausaBajaRoutes causaBajaRoutes;
         private final EspecieRoutes especieRoutes;
         private final EspecimenRoutes especimenRoutes;
         private final RegistroAltaRoutes registroAltaRoutes;
+        private final RegistroBajaRoutes registroBajaRoutes;
 
         public ModuleInitializer() {
             this.rolRoutes = initRoles();
             this.usuarioRoutes = initUsuarios();
             this.origenAltaRoutes = initOrigenAlta();
+            this.causaBajaRoutes = initCausaBaja();
             this.especieRoutes = initSpecies();
             this.especimenRoutes = initSpecimens();
             this.registroAltaRoutes = initRegistroAlta();
+            this.registroBajaRoutes = initRegistroBaja();
         }
 
         public RolRoutes getRolRoutes() { return rolRoutes; }
         public UsuarioRoutes getUsuarioRoutes() { return usuarioRoutes; }
         public OrigenAltaRoutes getOrigenAltaRoutes() { return origenAltaRoutes; }
+        public CausaBajaRoutes getCausaBajaRoutes() { return causaBajaRoutes; }
         public EspecieRoutes getEspecieRoutes() { return especieRoutes; }
         public EspecimenRoutes getEspecimenRoutes() { return especimenRoutes; }
         public RegistroAltaRoutes getRegistroAltaRoutes() { return registroAltaRoutes; }
+        public RegistroBajaRoutes getRegistroBajaRoutes() { return registroBajaRoutes; }
     }
 
     /**
@@ -159,9 +206,11 @@ public class AppModule {
             initRoles();
             initUsuarios();
             initOrigenAlta();
+            initCausaBaja();
             initSpecies();
             initSpecimens();
             initRegistroAlta();
+            initRegistroBaja();
 
             System.out.println("✅ Todas las dependencias validadas correctamente");
             return true;

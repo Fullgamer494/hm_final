@@ -223,7 +223,7 @@ public class RegistroBajaService {
         }
 
         // Validar que la causa de baja existe
-        if (causaBajaRepository.getByIdCausaBaja(registro.getId_causa_baja()).isEmpty()) {
+        if (causaBajaRepository.findById(registro.getId_causa_baja()).isEmpty()) {
             throw new IllegalArgumentException("La causa de baja con ID " + registro.getId_causa_baja() + " no existe");
         }
     }

@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Optional;
 
 /**
- * Servicio completo para gestionar causas de baja
+ * Servicio para gestionar causas de baja
  * Contiene la lógica de negocio para causas de baja
  */
 public class CausaBajaService {
@@ -24,19 +24,12 @@ public class CausaBajaService {
     /**
      * OBTENER todas las causas de baja
      */
-    public List<CausaBaja> getAll() throws SQLException {
-        return causaBajaRepository.getAllCausaBaja();
+    public List<CausaBaja> getAllCausas() throws SQLException {
+        return causaBajaRepository.findAll();
     }
 
     /**
-     * OBTENER causa de baja por ID - VERSION LEGACY
-     */
-    public List<CausaBaja> getById(int id) throws SQLException {
-        return causaBajaRepository.getByIdCausaBaja(id);
-    }
-
-    /**
-     * OBTENER causa de baja por ID - VERSION MEJORADA
+     * OBTENER causa de baja por ID
      */
     public CausaBaja getCausaById(Integer id) throws SQLException {
         if (id == null || id <= 0) {
@@ -67,64 +60,42 @@ public class CausaBajaService {
         validateCausaData(causa);
 
         // Validar que el nombre no esté en uso
-        if (causaBajaRepository.existsByName(causa.getNombreCausaBaja())) {
+        if (causaBajaRepository.existsByName(causa.getNombre_causa_baja())) {
             throw new IllegalArgumentException("Ya existe una causa de baja con este nombre");
         }
 
         // Normalizar nombre
-        causa.setNombreCausaBaja(capitalizeWords(causa.getNombreCausaBaja().trim()));
+        causa.setNombre_causa_baja(capitalizeWords(causa.getNombre_causa_baja().trim()));
 
         // Guardar causa
         return causaBajaRepository.save(causa);
     }
 
     /**
-     * ACTUALIZAR causa de baja - VERSION LEGACY
-     */
-    public boolean update(int id, String nombreCausaBaja) throws SQLException {
-        if (nombreCausaBaja == null || nombreCausaBaja.trim().isEmpty()) {
-            throw new IllegalArgumentException("El nombre de la causa de baja no puede estar vacío");
-        }
-
-        // Verificar que existe
-        if (!causaBajaRepository.existsById(id)) {
-            throw new IllegalArgumentException("No se encontró la causa de baja con ID: " + id);
-        }
-
-        // Verificar que el nombre no esté en uso por otra causa
-        Optional<CausaBaja> causaWithName = causaBajaRepository.findByName(nombreCausaBaja.trim());
-        if (causaWithName.isPresent() && !causaWithName.get().getIdCausaBaja().equals(id)) {
-            throw new IllegalArgumentException("El nombre ya está en uso por otra causa de baja");
-        }
-
-        return causaBajaRepository.updateCausaBaja(id, capitalizeWords(nombreCausaBaja.trim()));
-    }
-
-    /**
-     * ACTUALIZAR causa de baja - VERSION MEJORADA
+     * ACTUALIZAR causa de baja existente
      */
     public CausaBaja updateCausa(CausaBaja causa) throws SQLException {
-        if (causa.getIdCausaBaja() == null || causa.getIdCausaBaja() <= 0) {
+        if (causa.getId_causa_baja() == null || causa.getId_causa_baja() <= 0) {
             throw new IllegalArgumentException("ID de la causa requerido para actualización");
         }
 
         // Verificar que la causa existe
-        Optional<CausaBaja> existingCausa = causaBajaRepository.findById(causa.getIdCausaBaja());
+        Optional<CausaBaja> existingCausa = causaBajaRepository.findById(causa.getId_causa_baja());
         if (existingCausa.isEmpty()) {
-            throw new IllegalArgumentException("Causa de baja no encontrada con ID: " + causa.getIdCausaBaja());
+            throw new IllegalArgumentException("Causa de baja no encontrada con ID: " + causa.getId_causa_baja());
         }
 
         // Validaciones básicas
         validateCausaData(causa);
 
         // Validar que el nombre no esté en uso por otra causa
-        Optional<CausaBaja> causaWithName = causaBajaRepository.findByName(causa.getNombreCausaBaja());
-        if (causaWithName.isPresent() && !causaWithName.get().getIdCausaBaja().equals(causa.getIdCausaBaja())) {
+        Optional<CausaBaja> causaWithName = causaBajaRepository.findByName(causa.getNombre_causa_baja());
+        if (causaWithName.isPresent() && !causaWithName.get().getId_causa_baja().equals(causa.getId_causa_baja())) {
             throw new IllegalArgumentException("El nombre ya está en uso por otra causa de baja");
         }
 
         // Normalizar datos
-        causa.setNombreCausaBaja(capitalizeWords(causa.getNombreCausaBaja().trim()));
+        causa.setNombre_causa_baja(capitalizeWords(causa.getNombre_causa_baja().trim()));
 
         // Actualizar causa
         boolean updated = causaBajaRepository.update(causa);
@@ -232,12 +203,12 @@ public class CausaBajaService {
         }
 
         // Validar longitudes
-        if (causa.getNombreCausaBaja().length() < 2 || causa.getNombreCausaBaja().length() > 100) {
+        if (causa.getNombre_causa_baja().length() < 2 || causa.getNombre_causa_baja().length() > 100) {
             throw new IllegalArgumentException("El nombre de la causa debe tener entre 2 y 100 caracteres");
         }
 
         // Validar caracteres permitidos
-        if (!causa.getNombreCausaBaja().matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\\s\\-\\.\\(\\)]+$")) {
+        if (!causa.getNombre_causa_baja().matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\\s\\-\\.\\(\\)]+$")) {
             throw new IllegalArgumentException("El nombre de la causa solo puede contener letras, números, espacios, guiones, puntos y paréntesis");
         }
     }

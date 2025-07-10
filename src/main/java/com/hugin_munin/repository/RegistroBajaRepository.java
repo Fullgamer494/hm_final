@@ -558,8 +558,8 @@ public class RegistroBajaRepository {
         try {
             if (rs.getObject("cb_id_causa_baja") != null) {
                 causaBaja = new CausaBaja();
-                causaBaja.setIdCausaBaja(rs.getInt("cb_id_causa_baja"));
-                causaBaja.setNombreCausaBaja(rs.getString("nombre_causa_baja"));
+                causaBaja.setId_causa_baja(rs.getInt("id_causa_baja"));
+                causaBaja.setNombre_causa_baja(rs.getString("nombre_causa_baja"));
             }
         } catch (SQLException e) {
             causaBaja = null;
