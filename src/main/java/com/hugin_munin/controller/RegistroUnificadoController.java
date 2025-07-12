@@ -4,15 +4,20 @@ import com.hugin_munin.service.EspecimenService;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 
 /**
  * Controlador para manejar el registro unificado desde el frontend
  * Este controlador maneja la creación coordinada de especie, especimen y registro de alta
+ * VERSIÓN CORREGIDA - Maneja conversión de fechas correctamente
  */
 public class RegistroUnificadoController {
 
     private final EspecimenService especimenService;
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
     public RegistroUnificadoController(EspecimenService especimenService) {
         this.especimenService = especimenService;
@@ -36,7 +41,7 @@ public class RegistroUnificadoController {
      *     "id_responsable": 1,
      *     "procedencia": "Zoológico de la Ciudad",
      *     "observacion": "Especimen adulto en buen estado de salud",
-     *     "fecha_ingreso": "2024-01-15" // Opcional, si no se proporciona usa fecha actual
+     *     "fecha_ingreso": "2024-01-15" // Opcional, formato YYYY-MM-DD
      *   }
      * }
      */
@@ -52,6 +57,44 @@ public class RegistroUnificadoController {
                 return;
             }
 
+            // PROCESAMIENTO ESPECIAL DE FECHAS
+            Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
+            if (registroData != null && registroData.containsKey("fecha_ingreso")) {
+                Object fechaObj = registroData.get("fecha_ingreso");
+
+                if (fechaObj != null && fechaObj instanceof String) {
+                    try {
+                        String fechaStr = (String) fechaObj;
+                        if (!fechaStr.trim().isEmpty()) {
+                            // Convertir string a Date
+                            Date fecha = DATE_FORMAT.parse(fechaStr);
+                            registroData.put("fecha_ingreso", fecha);
+                            System.out.println("✅ Fecha convertida exitosamente: " + fechaStr + " -> " + fecha);
+                        } else {
+                            // Si es string vacío, usar fecha actual
+                            registroData.put("fecha_ingreso", new Date());
+                            System.out.println("✅ Usando fecha actual por string vacío");
+                        }
+                    } catch (ParseException e) {
+                        System.err.println("❌ Error al parsear fecha: " + fechaObj);
+                        ctx.status(HttpStatus.BAD_REQUEST)
+                                .json(createErrorResponse("Formato de fecha inválido",
+                                        "La fecha debe estar en formato YYYY-MM-DD. Ejemplo: 2024-01-15"));
+                        return;
+                    }
+                } else if (fechaObj == null) {
+                    // Si es null, usar fecha actual
+                    registroData.put("fecha_ingreso", new Date());
+                    System.out.println("✅ Usando fecha actual por valor null");
+                }
+            } else {
+                // Si no hay fecha_ingreso en el objeto, agregar fecha actual
+                if (registroData != null) {
+                    registroData.put("fecha_ingreso", new Date());
+                    System.out.println("✅ Agregando fecha actual por ausencia de campo");
+                }
+            }
+
             // Procesar el registro unificado
             Map<String, Object> result = especimenService.createSpecimenWithRegistration(requestData);
 
@@ -64,9 +107,13 @@ public class RegistroUnificadoController {
                     ));
 
         } catch (IllegalArgumentException e) {
+            System.err.println("❌ Error de validación: " + e.getMessage());
             ctx.status(HttpStatus.BAD_REQUEST)
                     .json(createErrorResponse("Datos inválidos", e.getMessage()));
         } catch (Exception e) {
+            System.err.println("❌ Error inesperado: " + e.getMessage());
+            e.printStackTrace();
+
             // Determinar el tipo de error para dar una respuesta más específica
             if (e.getMessage().contains("Ya existe")) {
                 ctx.status(HttpStatus.CONFLICT)
@@ -142,7 +189,8 @@ public class RegistroUnificadoController {
                                     "genero", "Mínimo 2 caracteres, solo letras",
                                     "especie", "Mínimo 2 caracteres, solo letras",
                                     "procedencia", "Máximo 200 caracteres",
-                                    "observacion", "Máximo 500 caracteres, requerida"
+                                    "observacion", "Máximo 500 caracteres, requerida",
+                                    "fecha_ingreso", "Formato YYYY-MM-DD o vacío para usar fecha actual"
                             )
                     )
             );
@@ -176,18 +224,38 @@ public class RegistroUnificadoController {
                         "id_responsable", 1,
                         "procedencia", "Zoológico de la Ciudad",
                         "observacion", "Especimen adulto en buen estado de salud",
-                        "fecha_ingreso", "2024-01-15 (opcional, formato YYYY-MM-DD)"
+                        "fecha_ingreso", "2024-01-15"
+                )
+        );
+
+        Map<String, Object> ejemploSinFecha = Map.of(
+                "especie", Map.of(
+                        "genero", "Felis",
+                        "especie", "catus"
+                ),
+                "especimen", Map.of(
+                        "num_inventario", "FC002",
+                        "nombre_especimen", "Gato Misifú"
+                ),
+                "registro_alta", Map.of(
+                        "id_origen_alta", 2,
+                        "id_responsable", 1,
+                        "procedencia", "Rescate urbano",
+                        "observacion", "Especimen joven encontrado en la calle"
+                        // Sin fecha_ingreso - usará fecha actual automáticamente
                 )
         );
 
         ctx.json(Map.of(
                 "success", true,
-                "message", "Ejemplo de estructura JSON para registro unificado",
-                "ejemplo", ejemplo,
+                "message", "Ejemplos de estructura JSON para registro unificado",
+                "ejemplo_con_fecha", ejemplo,
+                "ejemplo_sin_fecha", ejemploSinFecha,
                 "notas", Map.of(
                         "especie", "Si ya existe la combinación género+especie, se usará la existente",
                         "especimen", "El número de inventario debe ser único",
                         "registro_alta", "La fecha es opcional, si no se proporciona se usa la fecha actual",
+                        "formato_fecha", "YYYY-MM-DD (ejemplo: 2024-01-15)",
                         "proceso", "Se crean en orden: especie (si no existe) -> especimen -> registro de alta"
                 )
         ));
@@ -222,6 +290,19 @@ public class RegistroUnificadoController {
 
         if (!requestData.containsKey("registro_alta")) {
             throw new IllegalArgumentException("Faltan datos de registro de alta");
+        }
+
+        // Validar formato de fecha si está presente
+        Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
+        if (registroData.containsKey("fecha_ingreso")) {
+            Object fechaObj = registroData.get("fecha_ingreso");
+            if (fechaObj instanceof String && !((String) fechaObj).trim().isEmpty()) {
+                try {
+                    DATE_FORMAT.parse((String) fechaObj);
+                } catch (ParseException e) {
+                    throw new IllegalArgumentException("Formato de fecha inválido. Use YYYY-MM-DD");
+                }
+            }
         }
 
         return result;

@@ -1,3 +1,8 @@
+package com.hugin_munin.routes;
+
+import com.hugin_munin.controller.EspecimenController;
+import io.javalin.Javalin;
+
 /**
  * Configuración de rutas para especímenes con CRUD completo
  */

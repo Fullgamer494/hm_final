@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.Date;
+import java.text.SimpleDateFormat;
 
 /**
  * Servicio para gestionar especímenes con lógica de creación unificada
@@ -158,6 +159,9 @@ public class EspecimenService {
     /**
      * Crear registro de alta
      */
+    /**
+     * Crear registro de alta con manejo mejorado de fechas
+     */
     private RegistroAlta createRegistroAlta(Map<String, Object> registroData, Especimen especimen) throws SQLException {
         RegistroAlta registro = new RegistroAlta();
         registro.setId_especimen(especimen.getId_especimen());
@@ -166,11 +170,42 @@ public class EspecimenService {
         registro.setProcedencia((String) registroData.get("procedencia"));
         registro.setObservacion((String) registroData.get("observacion"));
 
-        // Establecer fecha de ingreso
-        if (registroData.containsKey("fecha_ingreso") && registroData.get("fecha_ingreso") != null) {
-            registro.setFecha_ingreso((Date) registroData.get("fecha_ingreso"));
+        // MANEJO MEJORADO DE FECHAS
+        if (registroData.containsKey("fecha_ingreso")) {
+            Object fechaObj = registroData.get("fecha_ingreso");
+
+            if (fechaObj instanceof Date) {
+                // Si ya es un Date, usarlo directamente
+                registro.setFecha_ingreso((Date) fechaObj);
+                System.out.println("✅ Usando fecha Date existente: " + fechaObj);
+            } else if (fechaObj instanceof String) {
+                // Si es String, convertir
+                String fechaStr = (String) fechaObj;
+                if (!fechaStr.trim().isEmpty()) {
+                    try {
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                        Date fecha = sdf.parse(fechaStr);
+                        registro.setFecha_ingreso(fecha);
+                        System.out.println("✅ Fecha convertida de String: " + fechaStr + " -> " + fecha);
+                    } catch (Exception e) {
+                        System.err.println("❌ Error al convertir fecha String: " + fechaStr);
+                        registro.setFecha_ingreso(new Date()); // Usar fecha actual como fallback
+                    }
+                } else {
+                    registro.setFecha_ingreso(new Date());
+                    System.out.println("✅ Usando fecha actual por String vacío");
+                }
+            } else if (fechaObj == null) {
+                registro.setFecha_ingreso(new Date());
+                System.out.println("✅ Usando fecha actual por valor null");
+            } else {
+                System.err.println("⚠️ Tipo de fecha desconocido: " + fechaObj.getClass());
+                registro.setFecha_ingreso(new Date());
+            }
         } else {
+            // Si no hay campo fecha_ingreso, usar fecha actual
             registro.setFecha_ingreso(new Date());
+            System.out.println("✅ Usando fecha actual por ausencia de campo");
         }
 
         // Validar que las referencias existan
