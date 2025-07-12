@@ -38,6 +38,6 @@ public class UsuarioRoutes {
         app.get("/hm/usuarios/estadisticas", usuarioController::getUserStatistics);
 
         // POST - Validar email
-        app.post("/hm/usuarios/validar-email", usuarioController::validateEmail);
+        app.post("/hm/usuarios/validar_email", usuarioController::validateEmail);
     }
 }

@@ -17,33 +17,18 @@ public class CausaBajaRoutes {
     public void defineRoutes(Javalin app) {
 
         // GET - Obtener todas las causas de baja
-        app.get("/hm/causas-baja", causaBajaController::getAllCausas);
+        app.get("/hm/causas_baja", causaBajaController::getAllCausas);
 
         // GET - Obtener causa de baja por ID
-        app.get("/hm/causas-baja/{id}", causaBajaController::getCausaById);
-
-        // GET - Buscar causas por nombre
-        app.get("/hm/causas-baja/search", causaBajaController::searchCausasByName);
+        app.get("/hm/causas_baja/{id}", causaBajaController::getCausaById);
 
         // POST - Crear nueva causa de baja
-        app.post("/hm/causas-baja", causaBajaController::createCausa);
+        app.post("/hm/causas_baja", causaBajaController::createCausa);
 
         // PUT - Actualizar causa de baja
-        app.put("/hm/causas-baja/{id}", causaBajaController::updateCausa);
+        app.put("/hm/causas_baja/{id}", causaBajaController::updateCausa);
 
         // DELETE - Eliminar causa de baja
-        app.delete("/hm/causas-baja/{id}", causaBajaController::deleteCausa);
-
-        // GET - Estadísticas de causas
-        app.get("/hm/causas-baja/estadisticas", causaBajaController::getCausaStatistics);
-
-        // GET - Causas más populares
-        app.get("/hm/causas-baja/populares", causaBajaController::getCausasPopulares);
-
-        // GET - Causas con actividad reciente
-        app.get("/hm/causas-baja/actividad-reciente", causaBajaController::getCausasConActividadReciente);
-
-        // POST - Validar nombre de causa
-        app.post("/hm/causas-baja/validar-nombre", causaBajaController::validateCausaName);
+        app.delete("/hm/causas_baja/{id}", causaBajaController::deleteCausa);
     }
 }

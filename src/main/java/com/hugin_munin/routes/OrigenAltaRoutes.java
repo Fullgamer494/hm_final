@@ -32,18 +32,18 @@ public class OrigenAltaRoutes {
         app.put("/hm/origenes-alta/{id}", origenAltaController::updateOrigen);
 
         // DELETE - Eliminar origen de alta
-        app.delete("/hm/origenes-alta/{id}", origenAltaController::deleteOrigen);
+        app.delete("/hm/origenes_alta/{id}", origenAltaController::deleteOrigen);
 
         // GET - Estadísticas de orígenes
-        app.get("/hm/origenes-alta/estadisticas", origenAltaController::getOrigenStatistics);
+        app.get("/hm/origenes_alta/estadisticas", origenAltaController::getOrigenStatistics);
 
         // GET - Orígenes más populares
-        app.get("/hm/origenes-alta/populares", origenAltaController::getOrigenesPopulares);
+        app.get("/hm/origenes_alta/populares", origenAltaController::getOrigenesPopulares);
 
         // GET - Orígenes con actividad reciente
-        app.get("/hm/origenes-alta/actividad-reciente", origenAltaController::getOrigenesConActividadReciente);
+        app.get("/hm/origenes_alta/actividad-reciente", origenAltaController::getOrigenesConActividadReciente);
 
         // POST - Validar nombre de origen
-        app.post("/hm/origenes-alta/validar-nombre", origenAltaController::validateOrigenName);
+        app.post("/hm/origenes_alta/validar-nombre", origenAltaController::validateOrigenName);
     }
 }

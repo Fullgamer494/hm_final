@@ -47,6 +47,6 @@ public class RolRoutes {
         app.get("/hm/roles/estadisticas", rolController::getRoleStatistics);
 
         // POST - Validar nombre de rol
-        app.post("/hm/roles/validar-nombre", rolController::validateRoleName);
+        app.post("/hm/roles/validar_nombre", rolController::validateRoleName);
     }
 }
