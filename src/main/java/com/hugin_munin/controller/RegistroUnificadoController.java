@@ -1,6 +1,8 @@
 package com.hugin_munin.controller;
 
 import com.hugin_munin.service.EspecimenService;
+import com.hugin_munin.service.ReporteTrasladoService;
+import com.hugin_munin.model.ReporteTraslado;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 
@@ -11,22 +13,27 @@ import java.util.Map;
 
 /**
  * Controlador para manejar el registro unificado desde el frontend
- * Este controlador maneja la creación coordinada de especie, especimen y registro de alta
- * VERSIÓN CORREGIDA - Maneja conversión de fechas correctamente
+ * ACTUALIZADO: Ahora incluye la creación de reportes de traslado
+ * Este controlador maneja la creación coordinada de:
+ * - especie, especimen y registro de alta (funcionalidad original)
+ * - reporte de traslado (nueva funcionalidad)
  */
 public class RegistroUnificadoController {
 
     private final EspecimenService especimenService;
+    private final ReporteTrasladoService reporteTrasladoService;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
-    public RegistroUnificadoController(EspecimenService especimenService) {
+    public RegistroUnificadoController(EspecimenService especimenService,
+                                       ReporteTrasladoService reporteTrasladoService) {
         this.especimenService = especimenService;
+        this.reporteTrasladoService = reporteTrasladoService;
     }
 
     /**
-     * POST /hm/registro-unificado - Crear especie, especimen y registro de alta en una sola operación
+     * POST /hm/registro-unificado - Crear especie, especimen, registro de alta y opcionalmente reporte de traslado
      *
-     * Estructura del JSON esperado:
+     * Estructura del JSON esperado ACTUALIZADA:
      * {
      *   "especie": {
      *     "genero": "Panthera",
@@ -41,7 +48,18 @@ public class RegistroUnificadoController {
      *     "id_responsable": 1,
      *     "procedencia": "Zoológico de la Ciudad",
      *     "observacion": "Especimen adulto en buen estado de salud",
-     *     "fecha_ingreso": "2024-01-15" // Opcional, formato YYYY-MM-DD
+     *     "fecha_ingreso": "2024-01-15"
+     *   },
+     *   "reporte_traslado": {  // NUEVO - OPCIONAL
+     *     "id_tipo_reporte": 1,
+     *     "asunto": "Traslado de especimen a nueva ubicación",
+     *     "contenido": "Traslado programado por mejoras en el habitat",
+     *     "area_origen": "Zona A",
+     *     "area_destino": "Zona B",
+     *     "ubicacion_origen": "Jaula 15",
+     *     "ubicacion_destino": "Jaula 23",
+     *     "motivo": "Renovación de instalaciones",
+     *     "fecha_reporte": "2024-01-15"  // Opcional
      *   }
      * }
      */
@@ -57,54 +75,52 @@ public class RegistroUnificadoController {
                 return;
             }
 
-            // PROCESAMIENTO ESPECIAL DE FECHAS
+            // PROCESAMIENTO ESPECIAL DE FECHAS para registro_alta
             Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
             if (registroData != null && registroData.containsKey("fecha_ingreso")) {
-                Object fechaObj = registroData.get("fecha_ingreso");
-
-                if (fechaObj != null && fechaObj instanceof String) {
-                    try {
-                        String fechaStr = (String) fechaObj;
-                        if (!fechaStr.trim().isEmpty()) {
-                            // Convertir string a Date
-                            Date fecha = DATE_FORMAT.parse(fechaStr);
-                            registroData.put("fecha_ingreso", fecha);
-                            System.out.println("✅ Fecha convertida exitosamente: " + fechaStr + " -> " + fecha);
-                        } else {
-                            // Si es string vacío, usar fecha actual
-                            registroData.put("fecha_ingreso", new Date());
-                            System.out.println("✅ Usando fecha actual por string vacío");
-                        }
-                    } catch (ParseException e) {
-                        System.err.println("❌ Error al parsear fecha: " + fechaObj);
-                        ctx.status(HttpStatus.BAD_REQUEST)
-                                .json(createErrorResponse("Formato de fecha inválido",
-                                        "La fecha debe estar en formato YYYY-MM-DD. Ejemplo: 2024-01-15"));
-                        return;
-                    }
-                } else if (fechaObj == null) {
-                    // Si es null, usar fecha actual
-                    registroData.put("fecha_ingreso", new Date());
-                    System.out.println("✅ Usando fecha actual por valor null");
-                }
+                procesarFecha(registroData, "fecha_ingreso");
             } else {
-                // Si no hay fecha_ingreso en el objeto, agregar fecha actual
                 if (registroData != null) {
                     registroData.put("fecha_ingreso", new Date());
-                    System.out.println("✅ Agregando fecha actual por ausencia de campo");
                 }
             }
 
-            // Procesar el registro unificado
-            Map<String, Object> result = especimenService.createSpecimenWithRegistration(requestData);
+            // PROCESAMIENTO ESPECIAL DE FECHAS para reporte_traslado (NUEVO)
+            Map<String, Object> reporteData = (Map<String, Object>) requestData.get("reporte_traslado");
+            boolean incluirReporte = reporteData != null && !reporteData.isEmpty();
+
+            if (incluirReporte) {
+                if (reporteData.containsKey("fecha_reporte")) {
+                    procesarFecha(reporteData, "fecha_reporte");
+                } else {
+                    reporteData.put("fecha_reporte", new Date());
+                }
+            }
+
+            // 1. Procesar el registro unificado original (especie + especimen + registro_alta)
+            Map<String, Object> registroResult = especimenService.createSpecimenWithRegistration(requestData);
+
+            // 2. Si se proporcionó reporte_traslado, crearlo (NUEVO)
+            Map<String, Object> reporteResult = null;
+            if (incluirReporte) {
+                reporteResult = createReporteTraslado(reporteData, registroResult);
+            }
+
+            // Preparar respuesta completa ACTUALIZADA
+            Map<String, Object> response = Map.of(
+                    "success", true,
+                    "message", incluirReporte ?
+                            "Registro unificado creado exitosamente con reporte de traslado" :
+                            "Registro unificado creado exitosamente",
+                    "registro_data", registroResult,
+                    "reporte_traslado", reporteResult != null ? reporteResult : "No se creó reporte de traslado",
+                    "components_created", incluirReporte ?
+                            Map.of("especie", "✅", "especimen", "✅", "registro_alta", "✅", "reporte_traslado", "✅") :
+                            Map.of("especie", "✅", "especimen", "✅", "registro_alta", "✅", "reporte_traslado", "❌")
+            );
 
             // Responder con éxito
-            ctx.status(HttpStatus.CREATED)
-                    .json(Map.of(
-                            "success", true,
-                            "message", "Registro unificado creado exitosamente",
-                            "data", result
-                    ));
+            ctx.status(HttpStatus.CREATED).json(response);
 
         } catch (IllegalArgumentException e) {
             System.err.println("❌ Error de validación: " + e.getMessage());
@@ -129,9 +145,7 @@ public class RegistroUnificadoController {
     }
 
     /**
-     * POST /hm/registro-unificado/validar - Validar datos antes de crear el registro
-     *
-     * Permite validar los datos sin crear el registro, útil para validación en tiempo real
+     * POST /hm/registro-unificado/validar - Validar datos antes de crear el registro ACTUALIZADA
      */
     public void validateUnifiedRegistration(Context ctx) {
         try {
@@ -168,21 +182,16 @@ public class RegistroUnificadoController {
     }
 
     /**
-     * GET /hm/registro-unificado/formulario-data - Obtener datos necesarios para el formulario
-     *
-     * Retorna listas de orígenes de alta, usuarios responsables, y otras opciones
-     * necesarias para completar el formulario de registro unificado
+     * GET /hm/registro-unificado/formulario-data - Obtener datos necesarios para el formulario ACTUALIZADA
      */
     public void getFormData(Context ctx) {
         try {
-            // Este método requeriría inyectar otros servicios
-            // Por ahora retornamos una estructura básica
-
             Map<String, Object> formData = Map.of(
-                    "message", "Para implementar completamente este endpoint se requieren los servicios de OrigenAlta y Usuario",
+                    "message", "Para implementar completamente este endpoint se requieren los servicios adicionales",
                     "estructura_esperada", Map.of(
                             "origenes_alta", "Lista de orígenes disponibles",
                             "usuarios_responsables", "Lista de usuarios que pueden ser responsables",
+                            "tipos_reporte", "Lista de tipos de reporte disponibles (NUEVO)",
                             "validation_rules", Map.of(
                                     "num_inventario", "Debe ser único, formato alfanumérico",
                                     "nombre_especimen", "Mínimo 2 caracteres, solo letras y espacios",
@@ -190,7 +199,15 @@ public class RegistroUnificadoController {
                                     "especie", "Mínimo 2 caracteres, solo letras",
                                     "procedencia", "Máximo 200 caracteres",
                                     "observacion", "Máximo 500 caracteres, requerida",
-                                    "fecha_ingreso", "Formato YYYY-MM-DD o vacío para usar fecha actual"
+                                    "fecha_ingreso", "Formato YYYY-MM-DD o vacío para usar fecha actual",
+                                    "reporte_traslado", "OPCIONAL - Todos los campos de traslado son requeridos si se incluye",
+                                    "area_origen", "Mínimo 2 caracteres, máximo 100",
+                                    "area_destino", "Mínimo 2 caracteres, máximo 100, debe ser diferente a origen",
+                                    "ubicacion_origen", "Mínimo 2 caracteres, máximo 100",
+                                    "ubicacion_destino", "Mínimo 2 caracteres, máximo 100, debe ser diferente a origen",
+                                    "motivo", "Mínimo 5 caracteres, máximo 500",
+                                    "asunto_reporte", "Mínimo 5 caracteres, máximo 200",
+                                    "contenido_reporte", "Mínimo 10 caracteres, máximo 1000"
                             )
                     )
             );
@@ -207,10 +224,10 @@ public class RegistroUnificadoController {
     }
 
     /**
-     * GET /hm/registro-unificado/ejemplo - Obtener ejemplo de estructura JSON
+     * GET /hm/registro-unificado/ejemplo - Obtener ejemplo de estructura JSON ACTUALIZADA
      */
     public void getExampleStructure(Context ctx) {
-        Map<String, Object> ejemplo = Map.of(
+        Map<String, Object> ejemploCompleto = Map.of(
                 "especie", Map.of(
                         "genero", "Panthera",
                         "especie", "leo"
@@ -225,10 +242,21 @@ public class RegistroUnificadoController {
                         "procedencia", "Zoológico de la Ciudad",
                         "observacion", "Especimen adulto en buen estado de salud",
                         "fecha_ingreso", "2024-01-15"
+                ),
+                "reporte_traslado", Map.of(
+                        "id_tipo_reporte", 1,
+                        "asunto", "Traslado de especimen a nueva ubicación",
+                        "contenido", "Traslado programado por mejoras en el habitat original",
+                        "area_origen", "Zona A",
+                        "area_destino", "Zona B",
+                        "ubicacion_origen", "Jaula 15",
+                        "ubicacion_destino", "Jaula 23",
+                        "motivo", "Renovación de instalaciones en Zona A",
+                        "fecha_reporte", "2024-01-15"
                 )
         );
 
-        Map<String, Object> ejemploSinFecha = Map.of(
+        Map<String, Object> ejemploSinReporte = Map.of(
                 "especie", Map.of(
                         "genero", "Felis",
                         "especie", "catus"
@@ -243,20 +271,24 @@ public class RegistroUnificadoController {
                         "procedencia", "Rescate urbano",
                         "observacion", "Especimen joven encontrado en la calle"
                         // Sin fecha_ingreso - usará fecha actual automáticamente
+                        // Sin reporte_traslado - es opcional
                 )
         );
 
         ctx.json(Map.of(
                 "success", true,
-                "message", "Ejemplos de estructura JSON para registro unificado",
-                "ejemplo_con_fecha", ejemplo,
-                "ejemplo_sin_fecha", ejemploSinFecha,
+                "message", "Ejemplos de estructura JSON para registro unificado con reportes de traslado",
+                "ejemplo_completo_con_reporte", ejemploCompleto,
+                "ejemplo_solo_registro", ejemploSinReporte,
                 "notas", Map.of(
                         "especie", "Si ya existe la combinación género+especie, se usará la existente",
                         "especimen", "El número de inventario debe ser único",
                         "registro_alta", "La fecha es opcional, si no se proporciona se usa la fecha actual",
+                        "reporte_traslado", "COMPLETAMENTE OPCIONAL - Solo se crea si se proporciona",
+                        "validacion_traslado", "Si se incluye reporte_traslado, TODOS sus campos son obligatorios",
                         "formato_fecha", "YYYY-MM-DD (ejemplo: 2024-01-15)",
-                        "proceso", "Se crean en orden: especie (si no existe) -> especimen -> registro de alta"
+                        "proceso", "Se crean en orden: especie -> especimen -> registro_alta -> reporte_traslado (si aplica)",
+                        "responsable_reporte", "Se usa el mismo responsable del registro_alta para el reporte"
                 )
         ));
     }
@@ -264,7 +296,92 @@ public class RegistroUnificadoController {
     // MÉTODOS PRIVADOS DE UTILIDAD
 
     /**
-     * Validar datos de registro sin crear registros en la base de datos
+     * Crear reporte de traslado con los datos del especimen ya creado
+     */
+    private Map<String, Object> createReporteTraslado(Map<String, Object> reporteData,
+                                                      Map<String, Object> registroResult) throws Exception {
+
+        // Obtener el especimen creado del resultado del registro
+        Map<String, Object> especimenData = (Map<String, Object>) registroResult.get("especimen");
+        Integer idEspecimen = (Integer) especimenData.get("id_especimen");
+
+        // Obtener el responsable del registro de alta
+        Map<String, Object> registroAltaData = (Map<String, Object>) registroResult.get("registro_alta");
+        Integer idResponsable = (Integer) registroAltaData.get("id_responsable");
+
+        // Crear objeto ReporteTraslado
+        ReporteTraslado reporteTraslado = new ReporteTraslado();
+
+        // Datos del reporte padre
+        reporteTraslado.setId_tipo_reporte((Integer) reporteData.get("id_tipo_reporte"));
+        reporteTraslado.setId_especimen(idEspecimen);
+        reporteTraslado.setId_responsable(idResponsable); // Mismo responsable que el registro
+        reporteTraslado.setAsunto((String) reporteData.get("asunto"));
+        reporteTraslado.setContenido((String) reporteData.get("contenido"));
+        reporteTraslado.setFecha_reporte((Date) reporteData.get("fecha_reporte"));
+        reporteTraslado.setActivo(true);
+
+        // Datos específicos de traslado
+        reporteTraslado.setArea_origen((String) reporteData.get("area_origen"));
+        reporteTraslado.setArea_destino((String) reporteData.get("area_destino"));
+        reporteTraslado.setUbicacion_origen((String) reporteData.get("ubicacion_origen"));
+        reporteTraslado.setUbicacion_destino((String) reporteData.get("ubicacion_destino"));
+        reporteTraslado.setMotivo((String) reporteData.get("motivo"));
+
+        // Crear el reporte de traslado
+        ReporteTraslado reporteCreado = reporteTrasladoService.createReporteTraslado(reporteTraslado);
+
+        return Map.of(
+                "id_reporte", reporteCreado.getId_reporte(),
+                "asunto", reporteCreado.getAsunto(),
+                "traslado_info", reporteCreado.getTrasladoInfo(),
+                "fecha_reporte", reporteCreado.getFecha_reporte(),
+                "message", "Reporte de traslado creado exitosamente"
+        );
+    }
+
+    /**
+     * Procesar fechas de manera uniforme
+     */
+    private void procesarFecha(Map<String, Object> data, String campoFecha) {
+        if (data.containsKey(campoFecha)) {
+            Object fechaObj = data.get(campoFecha);
+
+            if (fechaObj instanceof Date) {
+                // Si ya es un Date, usarlo directamente
+                System.out.println("✅ Usando fecha Date existente para " + campoFecha + ": " + fechaObj);
+            } else if (fechaObj instanceof String) {
+                // Si es String, convertir
+                String fechaStr = (String) fechaObj;
+                if (!fechaStr.trim().isEmpty()) {
+                    try {
+                        Date fecha = DATE_FORMAT.parse(fechaStr);
+                        data.put(campoFecha, fecha);
+                        System.out.println("✅ Fecha convertida de String para " + campoFecha + ": " + fechaStr + " -> " + fecha);
+                    } catch (ParseException e) {
+                        System.err.println("❌ Error al convertir fecha String para " + campoFecha + ": " + fechaStr);
+                        data.put(campoFecha, new Date()); // Usar fecha actual como fallback
+                    }
+                } else {
+                    data.put(campoFecha, new Date());
+                    System.out.println("✅ Usando fecha actual por String vacío para " + campoFecha);
+                }
+            } else if (fechaObj == null) {
+                data.put(campoFecha, new Date());
+                System.out.println("✅ Usando fecha actual por valor null para " + campoFecha);
+            } else {
+                System.err.println("⚠️ Tipo de fecha desconocido para " + campoFecha + ": " + fechaObj.getClass());
+                data.put(campoFecha, new Date());
+            }
+        } else {
+            // Si no hay campo de fecha, usar fecha actual
+            data.put(campoFecha, new Date());
+            System.out.println("✅ Usando fecha actual por ausencia de campo " + campoFecha);
+        }
+    }
+
+    /**
+     * Validar datos de solicitud unificada ACTUALIZADA
      */
     private Map<String, Object> validateRegistrationData(Map<String, Object> requestData) {
         Map<String, Object> result = Map.of(
@@ -273,13 +390,12 @@ public class RegistroUnificadoController {
                 "checks", Map.of(
                         "especie_data", "Estructura válida",
                         "especimen_data", "Estructura válida",
-                        "registro_data", "Estructura válida"
+                        "registro_data", "Estructura válida",
+                        "reporte_traslado_data", "Validación completada"
                 )
         );
 
-        // Aquí irían las validaciones específicas sin acceso a BD
-        // Por ahora solo validamos estructura básica
-
+        // Validaciones básicas requeridas
         if (!requestData.containsKey("especie")) {
             throw new IllegalArgumentException("Faltan datos de especie");
         }
@@ -292,20 +408,68 @@ public class RegistroUnificadoController {
             throw new IllegalArgumentException("Faltan datos de registro de alta");
         }
 
-        // Validar formato de fecha si está presente
+        // Validar formato de fecha en registro_alta si está presente
         Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
-        if (registroData.containsKey("fecha_ingreso")) {
-            Object fechaObj = registroData.get("fecha_ingreso");
-            if (fechaObj instanceof String && !((String) fechaObj).trim().isEmpty()) {
-                try {
-                    DATE_FORMAT.parse((String) fechaObj);
-                } catch (ParseException e) {
-                    throw new IllegalArgumentException("Formato de fecha inválido. Use YYYY-MM-DD");
-                }
+        validateDateFormat(registroData, "fecha_ingreso");
+
+        // NUEVA VALIDACIÓN - Reporte de traslado (opcional)
+        if (requestData.containsKey("reporte_traslado")) {
+            Map<String, Object> reporteData = (Map<String, Object>) requestData.get("reporte_traslado");
+            if (reporteData != null && !reporteData.isEmpty()) {
+                validateReporteTraslado(reporteData);
             }
         }
 
         return result;
+    }
+
+    /**
+     * NUEVA - Validar datos de reporte de traslado
+     */
+    private void validateReporteTraslado(Map<String, Object> reporteData) {
+        // Campos requeridos del reporte padre
+        String[] camposRequeridos = {
+                "id_tipo_reporte", "asunto", "contenido",
+                "area_origen", "area_destino", "ubicacion_origen",
+                "ubicacion_destino", "motivo"
+        };
+
+        for (String campo : camposRequeridos) {
+            if (!reporteData.containsKey(campo) ||
+                    reporteData.get(campo) == null ||
+                    reporteData.get(campo).toString().trim().isEmpty()) {
+                throw new IllegalArgumentException("Campo requerido para reporte de traslado: " + campo);
+            }
+        }
+
+        // Validar que origen y destino sean diferentes
+        String areaOrigen = reporteData.get("area_origen").toString().trim();
+        String areaDestino = reporteData.get("area_destino").toString().trim();
+        String ubicacionOrigen = reporteData.get("ubicacion_origen").toString().trim();
+        String ubicacionDestino = reporteData.get("ubicacion_destino").toString().trim();
+
+        if (areaOrigen.equals(areaDestino) && ubicacionOrigen.equals(ubicacionDestino)) {
+            throw new IllegalArgumentException("El traslado debe ser a una ubicación diferente");
+        }
+
+        // Validar formato de fecha si está presente
+        validateDateFormat(reporteData, "fecha_reporte");
+    }
+
+    /**
+     * Validar formato de fecha
+     */
+    private void validateDateFormat(Map<String, Object> data, String campoFecha) {
+        if (data.containsKey(campoFecha)) {
+            Object fechaObj = data.get(campoFecha);
+            if (fechaObj instanceof String && !((String) fechaObj).trim().isEmpty()) {
+                try {
+                    DATE_FORMAT.parse((String) fechaObj);
+                } catch (ParseException e) {
+                    throw new IllegalArgumentException("Formato de fecha inválido para " + campoFecha + ". Use YYYY-MM-DD");
+                }
+            }
+        }
     }
 
     /**
@@ -317,7 +481,7 @@ public class RegistroUnificadoController {
                 "error", error,
                 "details", details,
                 "timestamp", System.currentTimeMillis(),
-                "help", "Consulte /hm/registro-unificado/ejemplo para ver la estructura correcta"
+                "help", "Consulte /hm/registro-unificado/ejemplo para ver la estructura correcta con reportes de traslado"
         );
     }
 }
