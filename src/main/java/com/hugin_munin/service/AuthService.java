@@ -15,8 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
- * Servicio de autenticación básico con cookies
- * Maneja login, logout y sesiones en memoria
+ * Servicio de autenticación CORREGIDO - Sistema unificado
+ * Maneja login, logout y sesiones SOLO con cookies personalizadas
  */
 public class AuthService {
 
@@ -30,8 +30,6 @@ public class AuthService {
 
     public AuthService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
-
-        // Iniciar hilo de limpieza de sesiones expiradas
         startSessionCleanup();
     }
 
@@ -45,21 +43,24 @@ public class AuthService {
         }
 
         // Buscar usuario por nombre
-        Usuario usuario = usuarioRepository.findByName(nombreUsuario.trim())
-                .stream()
+        List<Usuario> usuarios = usuarioRepository.findByName(nombreUsuario.trim());
+        Usuario usuario = usuarios.stream()
                 .filter(u -> u.getNombre_usuario().equals(nombreUsuario.trim()))
                 .findFirst()
                 .orElse(null);
 
         if (usuario == null) {
+            System.out.println("❌ Usuario no encontrado: " + nombreUsuario);
             return null;
         }
 
         // Verificar contraseña
         if (verifyPassword(contrasena, usuario.getContrasena())) {
+            System.out.println("✅ Usuario autenticado: " + usuario.getNombre_usuario());
             return usuario;
         }
 
+        System.out.println("❌ Contraseña incorrecta para: " + nombreUsuario);
         return null;
     }
 
@@ -67,6 +68,9 @@ public class AuthService {
      * Crear nueva sesión para usuario autenticado
      */
     public String createSession(Usuario usuario) {
+        // LIMPIAR sesiones previas del mismo usuario primero
+        invalidateAllUserSessions(usuario.getId_usuario());
+
         // Generar ID único de sesión
         String sessionId = generateSessionId();
 
@@ -82,69 +86,91 @@ public class AuthService {
         // Almacenar sesión
         activeSessions.put(sessionId, sessionData);
 
-        System.out.println("🔐 Sesión creada para usuario: " + usuario.getNombre_usuario() + " (ID: " + sessionId + ")");
+        System.out.println("🔐 Nueva sesión creada para usuario: " + usuario.getNombre_usuario() +
+                " (ID: " + sessionId + ") - Total sesiones activas: " + activeSessions.size());
 
         return sessionId;
     }
 
     /**
-     * Obtener usuario por ID de sesión
+     * Obtener usuario por ID de sesión - VERSIÓN CORREGIDA
      */
     public Usuario getUserBySession(String sessionId) throws SQLException {
         if (sessionId == null || sessionId.trim().isEmpty()) {
+            System.out.println("⚠️ SessionId vacío o nulo");
             return null;
         }
 
         SessionData sessionData = activeSessions.get(sessionId);
-
         if (sessionData == null) {
+            System.out.println("⚠️ Sesión no encontrada: " + sessionId);
             return null;
         }
 
         // Verificar si la sesión ha expirado
         if (sessionData.isExpired()) {
+            System.out.println("⚠️ Sesión expirada: " + sessionId);
             activeSessions.remove(sessionId);
             return null;
         }
 
         // Obtener usuario actualizado de la base de datos
         Usuario usuario = usuarioRepository.findById(sessionData.getUserId());
-
         if (usuario == null || !usuario.isActivo()) {
-            // Usuario eliminado o desactivado, invalidar sesión
+            System.out.println("⚠️ Usuario eliminado o desactivado: " + sessionData.getUserId());
             activeSessions.remove(sessionId);
             return null;
         }
 
         // Actualizar última actividad
         sessionData.updateActivity();
+        System.out.println("✅ Sesión válida para: " + usuario.getNombre_usuario());
 
         return usuario;
     }
 
     /**
-     * Invalidar sesión específica
+     * Invalidar sesión específica - VERSIÓN CORREGIDA
      */
-    public void invalidateSession(String sessionId) {
-        if (sessionId != null) {
-            SessionData session = activeSessions.remove(sessionId);
-            if (session != null) {
-                System.out.println("🔐 Sesión invalidada: " + sessionId + " (Usuario: " + session.getUsername() + ")");
-            }
+    public boolean invalidateSession(String sessionId) {
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            return false;
         }
+
+        SessionData session = activeSessions.remove(sessionId);
+        if (session != null) {
+            System.out.println("🔐 Sesión invalidada: " + sessionId +
+                    " (Usuario: " + session.getUsername() + ")");
+            return true;
+        }
+
+        System.out.println("⚠️ Sesión no encontrada para invalidar: " + sessionId);
+        return false;
     }
 
     /**
-     * Invalidar todas las sesiones de un usuario
+     * Invalidar todas las sesiones de un usuario - MEJORADO
      */
     public void invalidateAllUserSessions(Integer userId) {
-        activeSessions.entrySet().removeIf(entry -> {
-            boolean shouldRemove = entry.getValue().getUserId().equals(userId);
-            if (shouldRemove) {
-                System.out.println("🔐 Sesión invalidada por limpieza de usuario: " + entry.getKey());
+        int removed = 0;
+        List<String> sessionsToRemove = new ArrayList<>();
+
+        // Identificar sesiones a remover
+        for (Map.Entry<String, SessionData> entry : activeSessions.entrySet()) {
+            if (entry.getValue().getUserId().equals(userId)) {
+                sessionsToRemove.add(entry.getKey());
             }
-            return shouldRemove;
-        });
+        }
+
+        // Remover sesiones
+        for (String sessionId : sessionsToRemove) {
+            activeSessions.remove(sessionId);
+            removed++;
+        }
+
+        if (removed > 0) {
+            System.out.println("🔐 " + removed + " sesiones invalidadas para usuario ID: " + userId);
+        }
     }
 
     /**
@@ -178,7 +204,7 @@ public class AuthService {
     }
 
     /**
-     * Obtener información de sesiones activas (para administración)
+     * Obtener información de sesiones activas
      */
     public Map<String, Object> getSessionInfo() {
         int totalSessions = activeSessions.size();
@@ -197,7 +223,7 @@ public class AuthService {
     // MÉTODOS PRIVADOS
 
     /**
-     * Verificar contraseña
+     * Verificar contraseña - MEJORADO
      */
     private boolean verifyPassword(String plainPassword, String hashedPassword) {
         if (plainPassword == null || hashedPassword == null) {
@@ -206,12 +232,16 @@ public class AuthService {
 
         // Si la contraseña en BD no está hasheada (backward compatibility)
         if (!hashedPassword.startsWith("sha256:")) {
-            return plainPassword.equals(hashedPassword);
+            boolean matches = plainPassword.equals(hashedPassword);
+            System.out.println("🔑 Verificando contraseña plain text: " + matches);
+            return matches;
         }
 
         // Verificar contraseña hasheada
         String expectedHash = hashPassword(plainPassword);
-        return expectedHash.equals(hashedPassword);
+        boolean matches = expectedHash.equals(hashedPassword);
+        System.out.println("🔑 Verificando contraseña hasheada: " + matches);
+        return matches;
     }
 
     /**
@@ -251,16 +281,11 @@ public class AuthService {
         Thread cleanupThread = new Thread(() -> {
             while (true) {
                 try {
-                    // Ejecutar cada 30 minutos
-                    Thread.sleep(30 * 60 * 1000);
-
-                    // Limpiar sesiones expiradas
+                    Thread.sleep(30 * 60 * 1000); // Cada 30 minutos
                     int removedCount = cleanupExpiredSessions();
-
                     if (removedCount > 0) {
                         System.out.println("🧹 Limpieza de sesiones: " + removedCount + " sesiones expiradas eliminadas");
                     }
-
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -279,7 +304,6 @@ public class AuthService {
      * Limpiar sesiones expiradas
      */
     private int cleanupExpiredSessions() {
-        // Recopilar las sesiones expiradas primero
         List<String> expiredSessions = new ArrayList<>();
 
         for (Map.Entry<String, SessionData> entry : activeSessions.entrySet()) {
@@ -288,7 +312,6 @@ public class AuthService {
             }
         }
 
-        // Eliminar las sesiones expiradas
         for (String sessionId : expiredSessions) {
             activeSessions.remove(sessionId);
         }

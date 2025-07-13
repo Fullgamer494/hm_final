@@ -12,8 +12,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Middleware de autenticación para verificar sesiones
- * Protege rutas que requieren autenticación
+ * Middleware de autenticación CORREGIDO - Sistema unificado
+ * SOLO usa cookies personalizadas, NO usa sessionAttribute de Javalin
  */
 public class AuthMiddleware {
 
@@ -28,33 +28,23 @@ public class AuthMiddleware {
             "/routes"
     );
 
-    // Rutas que requieren autenticación pero son de solo lectura
-    private static final List<String> READ_ONLY_ROUTES = Arrays.asList(
-            "/hm/especies",
-            "/hm/especimenes",
-            "/hm/roles",
-            "/hm/usuarios",
-            "/hm/origenes-alta",
-            "/hm/causas-baja",
-            "/hm/tipos-reporte",
-            "/hm/reportes",
-            "/hm/reportes-traslado"
-    );
-
     public AuthMiddleware(AuthService authService) {
         this.authService = authService;
     }
 
     /**
-     * Handler principal del middleware
+     * Handler principal del middleware - VERSIÓN CORREGIDA
      */
     public Handler handle() {
         return ctx -> {
             String path = ctx.path();
             String method = ctx.method().toString();
 
+            System.out.println("🔍 Middleware verificando: " + method + " " + path);
+
             // Permitir rutas públicas sin autenticación
             if (isPublicRoute(path)) {
+                System.out.println("✅ Ruta pública permitida: " + path);
                 return;
             }
 
@@ -62,18 +52,19 @@ public class AuthMiddleware {
             Usuario usuario = authenticateRequest(ctx);
 
             if (usuario == null) {
+                System.out.println("❌ Acceso denegado para: " + method + " " + path);
                 sendUnauthorizedResponse(ctx);
                 return;
             }
 
-            // Establecer usuario en el contexto para uso posterior
-            ctx.sessionAttribute("usuario", usuario);
-            ctx.sessionAttribute("user_id", usuario.getId_usuario());
-            ctx.sessionAttribute("user_name", usuario.getNombre_usuario());
-            ctx.sessionAttribute("user_role", usuario.getId_rol());
+            // CRÍTICO: Usar attribute() en lugar de sessionAttribute()
+            // Esto almacena los datos solo para esta request, no en sesión de Javalin
+            ctx.attribute("usuario", usuario);
+            ctx.attribute("user_id", usuario.getId_usuario());
+            ctx.attribute("user_name", usuario.getNombre_usuario());
+            ctx.attribute("user_role", usuario.getId_rol());
 
-            // Log de acceso (opcional)
-            logAccess(usuario, method, path);
+            System.out.println("✅ Usuario autenticado: " + usuario.getNombre_usuario() + " accediendo a " + path);
         };
     }
 
@@ -82,14 +73,13 @@ public class AuthMiddleware {
      */
     public Handler requireAdmin() {
         return ctx -> {
-            Usuario usuario = ctx.sessionAttribute("usuario");
+            Usuario usuario = ctx.attribute("usuario");
 
             if (usuario == null) {
                 sendUnauthorizedResponse(ctx);
                 return;
             }
 
-            // Verificar si el usuario tiene rol de administrador (asumiendo rol ID 1 = admin)
             if (!isAdminUser(usuario)) {
                 sendForbiddenResponse(ctx, "Se requieren permisos de administrador");
                 return;
@@ -98,49 +88,63 @@ public class AuthMiddleware {
     }
 
     /**
-     * Middleware para verificar que el usuario puede modificar datos
-     */
-    public Handler requireWritePermission() {
-        return ctx -> {
-            Usuario usuario = ctx.sessionAttribute("usuario");
-
-            if (usuario == null) {
-                sendUnauthorizedResponse(ctx);
-                return;
-            }
-
-            // Aquí puedes implementar lógica específica de permisos de escritura
-            // Por ejemplo, verificar rol o permisos específicos
-        };
-    }
-
-    /**
-     * Autenticar request usando cookie de sesión
+     * Autenticar request usando SOLO cookie personalizada
      */
     private Usuario authenticateRequest(Context ctx) {
         try {
             String sessionId = ctx.cookie("HM_SESSION");
 
+            System.out.println("🍪 Cookie HM_SESSION: " + (sessionId != null ? "presente" : "ausente"));
+
             if (sessionId == null || sessionId.trim().isEmpty()) {
+                System.out.println("⚠️ No hay cookie de sesión");
                 return null;
             }
 
-            // Verificar sesión y obtener usuario
+            // Verificar sesión usando AuthService
             Usuario usuario = authService.getUserBySession(sessionId);
 
             if (usuario == null) {
-                // Sesión inválida, limpiar cookies
-                ctx.removeCookie("HM_SESSION");
-                ctx.removeCookie("HM_USER_ID");
-                ctx.removeCookie("HM_USER_NAME");
+                System.out.println("⚠️ Sesión inválida, limpiando cookies");
+                // Sesión inválida, limpiar TODAS las cookies
+                clearAllAuthCookies(ctx);
                 return null;
             }
 
             return usuario;
 
         } catch (Exception e) {
-            System.err.println("Error en autenticación: " + e.getMessage());
+            System.err.println("❌ Error en autenticación: " + e.getMessage());
+            clearAllAuthCookies(ctx);
             return null;
+        }
+    }
+
+    /**
+     * Limpiar TODAS las cookies de autenticación - CRÍTICO
+     */
+    private void clearAllAuthCookies(Context ctx) {
+        try {
+            // Remover todas las cookies de autenticación con diferentes configuraciones
+
+            // Configuración básica
+            ctx.removeCookie("HM_SESSION");
+            ctx.removeCookie("HM_USER_ID");
+            ctx.removeCookie("HM_USER_NAME");
+
+            // Configuración con path específico
+            ctx.removeCookie("HM_SESSION", "/");
+            ctx.removeCookie("HM_USER_ID", "/");
+            ctx.removeCookie("HM_USER_NAME", "/");
+
+            // Configuración adicional para asegurar eliminación
+            ctx.cookie("HM_SESSION", "", 0);
+            ctx.cookie("HM_USER_ID", "", 0);
+            ctx.cookie("HM_USER_NAME", "", 0);
+
+            System.out.println("🧹 Cookies de autenticación limpiadas");
+        } catch (Exception e) {
+            System.err.println("Error limpiando cookies: " + e.getMessage());
         }
     }
 
@@ -161,8 +165,6 @@ public class AuthMiddleware {
      * Verificar si el usuario es administrador
      */
     private boolean isAdminUser(Usuario usuario) {
-        // Asumiendo que el rol ID 1 es administrador
-        // Puedes ajustar esta lógica según tu esquema de roles
         return usuario.getId_rol() != null && usuario.getId_rol() == 1;
     }
 
@@ -194,18 +196,10 @@ public class AuthMiddleware {
     }
 
     /**
-     * Registrar acceso en logs
-     */
-    private void logAccess(Usuario usuario, String method, String path) {
-        System.out.println(String.format("🔐 Acceso: %s %s - Usuario: %s (ID: %d)",
-                method, path, usuario.getNombre_usuario(), usuario.getId_usuario()));
-    }
-
-    /**
      * Handler para extraer información del usuario autenticado
      */
     public static Usuario getCurrentUser(Context ctx) {
-        return ctx.sessionAttribute("usuario");
+        return ctx.attribute("usuario");
     }
 
     /**
