@@ -4,8 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Date;
 
 /**
- * Modelo para la entidad ReporteTraslado
+ * Modelo para la entidad ReporteTraslado - CORREGIDO
  * Hereda de Reporte y agrega campos específicos para traslados
+ * CORREGIDO: Manejo adecuado de fechas heredado de la clase padre
  */
 public class ReporteTraslado extends Reporte {
 
@@ -43,10 +44,10 @@ public class ReporteTraslado extends Reporte {
     public ReporteTraslado(Integer id_reporte, Integer id_tipo_reporte, TipoReporte tipo_reporte,
                            Integer id_especimen, Especimen especimen, Integer id_responsable,
                            Usuario responsable, String asunto, String contenido, Date fecha_reporte,
-                           boolean activo, String area_origen, String area_destino,
+                           String area_origen, String area_destino,
                            String ubicacion_origen, String ubicacion_destino, String motivo) {
         super(id_reporte, id_tipo_reporte, tipo_reporte, id_especimen, especimen,
-                id_responsable, responsable, asunto, contenido, fecha_reporte, activo);
+                id_responsable, responsable, asunto, contenido, fecha_reporte);
         this.area_origen = area_origen;
         this.area_destino = area_destino;
         this.ubicacion_origen = ubicacion_origen;

@@ -10,28 +10,28 @@ import java.util.Optional;
 import java.util.Date;
 
 /**
- * Repositorio para gestionar reportes (CORREGIDO)
+ * Repositorio para gestionar reportes - CORREGIDO
  * Maneja todas las operaciones CRUD para la entidad Reporte
+ * CORREGIDO: Eliminado campo 'activo' y ajustado manejo de fechas
  */
 public class ReporteRepository {
 
     // Query básica sin joins
     private static final String BASIC_QUERY = """
             SELECT r.id_reporte, r.id_tipo_reporte, r.id_especimen, r.id_responsable,
-                   r.asunto, r.contenido, r.fecha_reporte, r.activo
+                   r.asunto, r.contenido, r.fecha_reporte
             FROM reporte r
             """;
 
     // Query con joins completos CORREGIDA
     private static final String COMPLETE_QUERY = """
             SELECT r.id_reporte, r.id_tipo_reporte, r.id_especimen, r.id_responsable,
-                   r.asunto, r.contenido, r.fecha_reporte, r.activo,
+                   r.asunto, r.contenido, r.fecha_reporte,
                      
                    -- Datos de TipoReporte
                    tr.id_tipo_reporte as tr_id_tipo_reporte,
                    tr.nombre_tipo_reporte,
                    tr.descripcion as tr_descripcion,
-                   tr.activo as tr_activo,
                      
                    -- Datos de Especimen
                    esp.id_especimen as esp_id_especimen,
@@ -70,8 +70,8 @@ public class ReporteRepository {
     public Reporte save(Reporte reporte) throws SQLException {
         String query = """
             INSERT INTO reporte (id_tipo_reporte, id_especimen, id_responsable, 
-                               asunto, contenido, fecha_reporte, activo) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                               asunto, contenido, fecha_reporte) 
+            VALUES (?, ?, ?, ?, ?, ?)
             """;
 
         try (Connection conn = DatabaseConfig.getConnection();
@@ -82,8 +82,7 @@ public class ReporteRepository {
             stmt.setInt(3, reporte.getId_responsable());
             stmt.setString(4, reporte.getAsunto());
             stmt.setString(5, reporte.getContenido());
-            stmt.setDate(6, new java.sql.Date(reporte.getFecha_reporte().getTime()));
-            stmt.setBoolean(7, reporte.isActivo());
+            stmt.setTimestamp(6, new java.sql.Timestamp(reporte.getFecha_reporte().getTime()));
 
             int affectedRows = stmt.executeUpdate();
 
@@ -205,18 +204,10 @@ public class ReporteRepository {
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
-            stmt.setDate(1, new java.sql.Date(fechaInicio.getTime()));
-            stmt.setDate(2, new java.sql.Date(fechaFin.getTime()));
+            stmt.setTimestamp(1, new java.sql.Timestamp(fechaInicio.getTime()));
+            stmt.setTimestamp(2, new java.sql.Timestamp(fechaFin.getTime()));
             return executeQueryWithJoins(stmt);
         }
-    }
-
-    /**
-     * BUSCAR reportes activos
-     */
-    public List<Reporte> findActive() throws SQLException {
-        String query = COMPLETE_QUERY + " WHERE r.activo = TRUE ORDER BY r.fecha_reporte DESC";
-        return executeQueryWithJoins(query);
     }
 
     /**
@@ -226,7 +217,7 @@ public class ReporteRepository {
         String query = """
             UPDATE reporte 
             SET id_tipo_reporte = ?, id_especimen = ?, id_responsable = ?,
-                asunto = ?, contenido = ?, fecha_reporte = ?, activo = ?
+                asunto = ?, contenido = ?, fecha_reporte = ?
             WHERE id_reporte = ?
             """;
 
@@ -238,9 +229,8 @@ public class ReporteRepository {
             stmt.setInt(3, reporte.getId_responsable());
             stmt.setString(4, reporte.getAsunto());
             stmt.setString(5, reporte.getContenido());
-            stmt.setDate(6, new java.sql.Date(reporte.getFecha_reporte().getTime()));
-            stmt.setBoolean(7, reporte.isActivo());
-            stmt.setInt(8, reporte.getId_reporte());
+            stmt.setTimestamp(6, new java.sql.Timestamp(reporte.getFecha_reporte().getTime()));
+            stmt.setInt(7, reporte.getId_reporte());
 
             return stmt.executeUpdate() > 0;
         }
@@ -256,21 +246,6 @@ public class ReporteRepository {
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    /**
-     * ACTIVAR/DESACTIVAR reporte
-     */
-    public boolean setActiveStatus(Integer id, boolean activo) throws SQLException {
-        String query = "UPDATE reporte SET activo = ? WHERE id_reporte = ?";
-
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setBoolean(1, activo);
-            stmt.setInt(2, id);
             return stmt.executeUpdate() > 0;
         }
     }
@@ -297,23 +272,6 @@ public class ReporteRepository {
      */
     public int countTotal() throws SQLException {
         String query = "SELECT COUNT(*) FROM reporte";
-
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return 0;
-    }
-
-    /**
-     * CONTAR reportes activos
-     */
-    public int countActive() throws SQLException {
-        String query = "SELECT COUNT(*) FROM reporte WHERE activo = TRUE";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query);
@@ -421,7 +379,6 @@ public class ReporteRepository {
                 tipoReporte.setId_tipo_reporte(tipoId);
                 tipoReporte.setNombre_tipo_reporte(rs.getString("nombre_tipo_reporte"));
                 tipoReporte.setDescripcion(rs.getString("tr_descripcion"));
-                tipoReporte.setActivo(rs.getBoolean("tr_activo"));
             }
         } catch (SQLException e) {
             // Si falla el tipo reporte, continuar sin él
@@ -435,8 +392,7 @@ public class ReporteRepository {
         reporte.setId_responsable(rs.getInt("id_responsable"));
         reporte.setAsunto(rs.getString("asunto"));
         reporte.setContenido(rs.getString("contenido"));
-        reporte.setFecha_reporte(rs.getDate("fecha_reporte"));
-        reporte.setActivo(rs.getBoolean("activo"));
+        reporte.setFecha_reporte(rs.getTimestamp("fecha_reporte"));
 
         // Asignar objetos relacionados
         reporte.setTipo_reporte(tipoReporte);

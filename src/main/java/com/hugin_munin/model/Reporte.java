@@ -1,12 +1,15 @@
 package com.hugin_munin.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.Date;
 import java.util.Objects;
 
 /**
- * Modelo para la entidad Reporte (Clase padre)
+ * Modelo para la entidad Reporte (Clase padre) - CORREGIDO
  * Representa los reportes generales del sistema
+ * AGREGADO: Manejo adecuado de fechas con @JsonFormat
+ * CORREGIDO: Eliminado campo 'activo' del procesamiento
  */
 public class Reporte {
 
@@ -38,14 +41,11 @@ public class Reporte {
     private String contenido;
 
     @JsonProperty("fecha_reporte")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "UTC")
     private Date fecha_reporte;
-
-    @JsonProperty("activo")
-    private boolean activo;
 
     // Constructores
     public Reporte() {
-        this.activo = true;
         this.fecha_reporte = new Date();
     }
 
@@ -56,13 +56,12 @@ public class Reporte {
         this.id_responsable = id_responsable;
         this.asunto = asunto;
         this.contenido = contenido;
-        this.activo = true;
         this.fecha_reporte = new Date();
     }
 
     public Reporte(Integer id_reporte, Integer id_tipo_reporte, TipoReporte tipo_reporte,
                    Integer id_especimen, Especimen especimen, Integer id_responsable,
-                   Usuario responsable, String asunto, String contenido, Date fecha_reporte, boolean activo) {
+                   Usuario responsable, String asunto, String contenido, Date fecha_reporte) {
         this.id_reporte = id_reporte;
         this.id_tipo_reporte = id_tipo_reporte;
         this.tipo_reporte = tipo_reporte;
@@ -73,7 +72,6 @@ public class Reporte {
         this.asunto = asunto;
         this.contenido = contenido;
         this.fecha_reporte = fecha_reporte;
-        this.activo = activo;
     }
 
     // Getters
@@ -117,10 +115,6 @@ public class Reporte {
         return fecha_reporte;
     }
 
-    public boolean isActivo() {
-        return activo;
-    }
-
     // Setters
     public void setId_reporte(Integer id_reporte) {
         this.id_reporte = id_reporte;
@@ -162,10 +156,6 @@ public class Reporte {
         this.fecha_reporte = fecha_reporte;
     }
 
-    public void setActivo(boolean activo) {
-        this.activo = activo;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -197,7 +187,7 @@ public class Reporte {
 
     @Override
     public String toString() {
-        return String.format("Reporte{id=%d, tipo=%d, asunto='%s', fecha=%s, activo=%s}",
-                id_reporte, id_tipo_reporte, asunto, fecha_reporte, activo);
+        return String.format("Reporte{id=%d, tipo=%d, asunto='%s', fecha=%s}",
+                id_reporte, id_tipo_reporte, asunto, fecha_reporte);
     }
 }
