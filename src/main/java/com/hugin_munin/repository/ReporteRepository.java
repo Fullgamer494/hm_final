@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Date;
 
 /**
- * Repositorio para gestionar reportes
+ * Repositorio para gestionar reportes (CORREGIDO)
  * Maneja todas las operaciones CRUD para la entidad Reporte
  */
 public class ReporteRepository {
@@ -22,60 +22,56 @@ public class ReporteRepository {
             FROM reporte r
             """;
 
-    // Query con joins completos
+    // Query con joins completos CORREGIDA
     private static final String COMPLETE_QUERY = """
-        
             SELECT r.id_reporte, r.id_tipo_reporte, r.id_especimen, r.id_responsable,
-               r.asunto, r.contenido, r.fecha_reporte, 
+                   r.asunto, r.contenido, r.fecha_reporte, r.activo,
                      
-               -- Datos de TipoReporte
-               tr.id_tipo_reporte as tr_id_tipo_reporte,
-               tr.nombre_tipo_reporte,
-               tr.descripcion as tr_descripcion,
-               tr.activo as t
+                   -- Datos de TipoReporte
+                   tr.id_tipo_reporte as tr_id_tipo_reporte,
+                   tr.nombre_tipo_reporte,
+                   tr.descripcion as tr_descripcion,
+                   tr.activo as tr_activo,
                      
-               -- Datos de Especimen
-               esp.id_especimen as esp_id_especimen,
-               esp.num_inventario,
-               esp.id_especie as esp_id_especie,
-               esp.nombre_especimen,
-               esp.activo as es
+                   -- Datos de Especimen
+                   esp.id_especimen as esp_id_especimen,
+                   esp.num_inventario,
+                   esp.id_especie as esp_id_especie,
+                   esp.nombre_especimen,
+                   esp.activo as esp_activo,
                      
-               -- Datos de Especie
-               e.id_especie as e_id_especie,
-               e.genero,
-               e
+                   -- Datos de Especie
+                   e.id_especie as e_id_especie,
+                   e.genero,
+                   e.especie,
                      
-               -- Datos de Usuario
-               u.id_usuario,
-               u.id_rol as u_id_rol,
-               u.nombre_usuario,
-               u.correo,
-               u.activo as 
+                   -- Datos de Usuario
+                   u.id_usuario,
+                   u.id_rol as u_id_rol,
+                   u.nombre_usuario,
+                   u.correo,
+                   u.activo as u_activo,
                      
-               -- Datos de Rol
-               rol.id_rol as rol_id_rol,
-               rol.n
+                   -- Datos de Rol
+                   rol.id_rol as rol_id_rol,
+                   rol.nombre_rol
                      
-        FROM reporte r
-        LEFT JOIN tipo_reporte tr ON r.id_tipo_reporte = tr.id_tipo_reporte
-        LEFT JOIN especimen esp ON r.id_especimen = esp.id_especimen
-        LEFT JOIN especie e ON esp.id_especie = e.id_especie
-        LEFT JOIN usuario u ON r.id_responsable = u.id_usuario
-        LEFT JOIN rol rol ON u.id_rol = rol.id_rol
-        """;
+            FROM reporte r
+            LEFT JOIN tipo_reporte tr ON r.id_tipo_reporte = tr.id_tipo_reporte
+            LEFT JOIN especimen esp ON r.id_especimen = esp.id_especimen
+            LEFT JOIN especie e ON esp.id_especie = e.id_especie
+            LEFT JOIN usuario u ON r.id_responsable = u.id_usuario
+            LEFT JOIN rol rol ON u.id_rol = rol.id_rol
+            """;
 
     /**
      * GUARDAR nuevo reporte
      */
     public Reporte save(Reporte reporte) throws SQLException {
-        String query =
-                """
-            INSERT INTO reporte (id_tipo_reporte, id_especimen,
-                id_responsable, 
-                               asunto, contenido,
-                fecha_reporte, acti
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+        String query = """
+            INSERT INTO reporte (id_tipo_reporte, id_especimen, id_responsable, 
+                               asunto, contenido, fecha_reporte, activo) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
 
         try (Connection conn = DatabaseConfig.getConnection();
@@ -226,14 +222,11 @@ public class ReporteRepository {
     /**
      * ACTUALIZAR reporte existente
      */
-    public boolean update(Reporte reporte) throws
-                SQLException {
-                String query = """
+    public boolean update(Reporte reporte) throws SQLException {
+        String query = """
             UPDATE reporte 
-            SET
-                id_tipo_reporte = ?, id_especimen = ?, id_responsable = ?,
-                asunto = ?, contenido = ?,
-                fecha_reporte = ?, activo = ?
+            SET id_tipo_reporte = ?, id_especimen = ?, id_responsable = ?,
+                asunto = ?, contenido = ?, fecha_reporte = ?, activo = ?
             WHERE id_reporte = ?
             """;
 
