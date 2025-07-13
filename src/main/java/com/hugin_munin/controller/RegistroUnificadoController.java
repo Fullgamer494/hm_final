@@ -239,7 +239,6 @@ public class RegistroUnificadoController {
         Map<String, Object> result = new HashMap<>();
         result.put("id_reporte", reporteCreado.getId_reporte());
         result.put("asunto", reporteCreado.getAsunto());
-        result.put("traslado_info", reporteCreado.getTrasladoInfo());
         result.put("area_origen", reporteCreado.getArea_origen());
         result.put("area_destino", reporteCreado.getArea_destino());
         result.put("message", "Reporte de traslado creado exitosamente");
@@ -355,8 +354,6 @@ public class RegistroUnificadoController {
         } else {
             reporteTraslado.setFecha_reporte(new Date());
         }
-
-        reporteTraslado.setActivo(true);
 
         // DATOS ESPECÍFICOS DE TRASLADO
         reporteTraslado.setArea_origen((String) reporteData.get("area_origen"));

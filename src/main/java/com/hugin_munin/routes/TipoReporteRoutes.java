@@ -19,9 +19,6 @@ public class TipoReporteRoutes {
         // GET - Obtener todos los tipos de reporte
         app.get("/hm/tipos-reporte", tipoReporteController::getAllTipos);
 
-        // GET - Obtener tipos activos
-        app.get("/hm/tipos-reporte/activos", tipoReporteController::getActiveTipos);
-
         // GET - Obtener tipo por ID
         app.get("/hm/tipos-reporte/{id}", tipoReporteController::getTipoById);
 
@@ -36,12 +33,6 @@ public class TipoReporteRoutes {
 
         // DELETE - Eliminar tipo
         app.delete("/hm/tipos-reporte/{id}", tipoReporteController::deleteTipo);
-
-        // PATCH - Activar tipo
-        app.patch("/hm/tipos-reporte/{id}/activar", tipoReporteController::activateTipo);
-
-        // PATCH - Desactivar tipo
-        app.patch("/hm/tipos-reporte/{id}/desactivar", tipoReporteController::deactivateTipo);
 
         // GET - Estadísticas
         app.get("/hm/tipos-reporte/estadisticas", tipoReporteController::getTipoStatistics);

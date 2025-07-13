@@ -41,23 +41,6 @@ public class ReporteController {
     }
 
     /**
-     * GET /hm/reportes/activos - Obtener reportes activos
-     */
-    public void getActiveReportes(Context ctx) {
-        try {
-            List<Reporte> reportes = reporteService.getActiveReportes();
-            ctx.json(Map.of(
-                    "data", reportes,
-                    "total", reportes.size(),
-                    "message", "Reportes activos obtenidos exitosamente"
-            ));
-        } catch (Exception e) {
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al obtener reportes activos", e.getMessage()));
-        }
-    }
-
-    /**
      * GET /hm/reportes/{id} - Obtener reporte por ID
      */
     public void getReporteById(Context ctx) {
@@ -313,58 +296,6 @@ public class ReporteController {
         } catch (Exception e) {
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .json(createErrorResponse("Error al eliminar reporte", e.getMessage()));
-        }
-    }
-
-    /**
-     * PATCH /hm/reportes/{id}/activar - Activar reporte
-     */
-    public void activateReporte(Context ctx) {
-        try {
-            int id = Integer.parseInt(ctx.pathParam("id"));
-            boolean activado = reporteService.activateReporte(id);
-
-            if (activado) {
-                ctx.json(Map.of(
-                        "message", "Reporte activado exitosamente",
-                        "success", true
-                ));
-            } else {
-                ctx.status(HttpStatus.NOT_FOUND)
-                        .json(createErrorResponse("Reporte no encontrado", "No se pudo activar el reporte"));
-            }
-        } catch (NumberFormatException e) {
-            ctx.status(HttpStatus.BAD_REQUEST)
-                    .json(createErrorResponse("ID inválido", "El ID debe ser un número entero"));
-        } catch (Exception e) {
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al activar reporte", e.getMessage()));
-        }
-    }
-
-    /**
-     * PATCH /hm/reportes/{id}/desactivar - Desactivar reporte
-     */
-    public void deactivateReporte(Context ctx) {
-        try {
-            int id = Integer.parseInt(ctx.pathParam("id"));
-            boolean desactivado = reporteService.deactivateReporte(id);
-
-            if (desactivado) {
-                ctx.json(Map.of(
-                        "message", "Reporte desactivado exitosamente",
-                        "success", true
-                ));
-            } else {
-                ctx.status(HttpStatus.NOT_FOUND)
-                        .json(createErrorResponse("Reporte no encontrado", "No se pudo desactivar el reporte"));
-            }
-        } catch (NumberFormatException e) {
-            ctx.status(HttpStatus.BAD_REQUEST)
-                    .json(createErrorResponse("ID inválido", "El ID debe ser un número entero"));
-        } catch (Exception e) {
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al desactivar reporte", e.getMessage()));
         }
     }
 

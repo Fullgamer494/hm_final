@@ -42,13 +42,6 @@ public class ReporteService {
     }
 
     /**
-     * OBTENER reportes activos
-     */
-    public List<Reporte> getActiveReportes() throws SQLException {
-        return reporteRepository.findActive();
-    }
-
-    /**
      * OBTENER reporte por ID
      */
     public Reporte getReporteById(Integer id) throws SQLException {
@@ -196,44 +189,12 @@ public class ReporteService {
     }
 
     /**
-     * ACTIVAR reporte
-     */
-    public boolean activateReporte(Integer id) throws SQLException {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("ID inválido");
-        }
-
-        if (!reporteRepository.existsById(id)) {
-            throw new IllegalArgumentException("Reporte no encontrado con ID: " + id);
-        }
-
-        return reporteRepository.setActiveStatus(id, true);
-    }
-
-    /**
-     * DESACTIVAR reporte
-     */
-    public boolean deactivateReporte(Integer id) throws SQLException {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("ID inválido");
-        }
-
-        if (!reporteRepository.existsById(id)) {
-            throw new IllegalArgumentException("Reporte no encontrado con ID: " + id);
-        }
-
-        return reporteRepository.setActiveStatus(id, false);
-    }
-
-    /**
      * OBTENER estadísticas de reportes
      */
     public Map<String, Object> getReporteStatistics() throws SQLException {
         Map<String, Object> stats = new HashMap<>();
 
         stats.put("total_reportes", reporteRepository.countTotal());
-        stats.put("reportes_activos", reporteRepository.countActive());
-
         return stats;
     }
 

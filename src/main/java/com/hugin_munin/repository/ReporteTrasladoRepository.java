@@ -310,8 +310,7 @@ public class ReporteTrasladoRepository {
                 stmt.setString(4, reporteTraslado.getAsunto());
                 stmt.setString(5, reporteTraslado.getContenido());
                 stmt.setDate(6, new java.sql.Date(reporteTraslado.getFecha_reporte().getTime()));
-                stmt.setBoolean(7, reporteTraslado.isActivo());
-                stmt.setInt(8, reporteTraslado.getId_reporte());
+                stmt.setInt(7, reporteTraslado.getId_reporte());
 
                 stmt.executeUpdate();
             }

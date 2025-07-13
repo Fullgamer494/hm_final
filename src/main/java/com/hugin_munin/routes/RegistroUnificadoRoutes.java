@@ -17,15 +17,15 @@ public class RegistroUnificadoRoutes {
 
     public void defineRoutes(Javalin app) {
         // POST - Crear registro unificado (especie + especimen + registro alta)
-        app.post("/hm/registro-unificado", controller::createUnifiedRegistration);
+        app.post("/hm/registro_unificado", controller::createUnifiedRegistration);
 
         // POST - Validar datos antes de crear
-        app.post("/hm/registro-unificado/validar", controller::validateUnifiedRegistration);
+        app.post("/hm/registro_unificado/validar", controller::validateUnifiedRegistration);
 
         // GET - Obtener datos necesarios para el formulario
-        app.get("/hm/registro-unificado/formulario-data", controller::getFormData);
+        app.get("/hm/registro_unificado/formulario-data", controller::getFormData);
 
         // GET - Obtener ejemplo de estructura JSON
-        app.get("/hm/registro-unificado/ejemplo", controller::getExampleStructure);
+        app.get("/hm/registro_unificado/ejemplo", controller::getExampleStructure);
     }
 }

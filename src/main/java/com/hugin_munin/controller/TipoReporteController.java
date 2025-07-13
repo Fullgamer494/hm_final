@@ -38,23 +38,6 @@ public class TipoReporteController {
     }
 
     /**
-     * GET /hm/tipos-reporte/activos - Obtener tipos activos
-     */
-    public void getActiveTipos(Context ctx) {
-        try {
-            List<TipoReporte> tipos = tipoReporteService.getActiveTipos();
-            ctx.json(Map.of(
-                    "data", tipos,
-                    "total", tipos.size(),
-                    "message", "Tipos de reporte activos obtenidos exitosamente"
-            ));
-        } catch (Exception e) {
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al obtener tipos activos", e.getMessage()));
-        }
-    }
-
-    /**
      * GET /hm/tipos-reporte/{id} - Obtener tipo por ID
      */
     public void getTipoById(Context ctx) {
@@ -112,9 +95,6 @@ public class TipoReporteController {
     public void createTipo(Context ctx) {
         try {
             TipoReporte nuevoTipo = ctx.bodyAsClass(TipoReporte.class);
-
-            // Establecer como activo por defecto
-            nuevoTipo.setActivo(true);
 
             TipoReporte tipoCreado = tipoReporteService.createTipo(nuevoTipo);
 
@@ -192,58 +172,6 @@ public class TipoReporteController {
         } catch (Exception e) {
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .json(createErrorResponse("Error al eliminar tipo de reporte", e.getMessage()));
-        }
-    }
-
-    /**
-     * PATCH /hm/tipos-reporte/{id}/activar - Activar tipo
-     */
-    public void activateTipo(Context ctx) {
-        try {
-            int id = Integer.parseInt(ctx.pathParam("id"));
-            boolean activado = tipoReporteService.activateTipo(id);
-
-            if (activado) {
-                ctx.json(Map.of(
-                        "message", "Tipo de reporte activado exitosamente",
-                        "success", true
-                ));
-            } else {
-                ctx.status(HttpStatus.NOT_FOUND)
-                        .json(createErrorResponse("Tipo no encontrado", "No se pudo activar el tipo"));
-            }
-        } catch (NumberFormatException e) {
-            ctx.status(HttpStatus.BAD_REQUEST)
-                    .json(createErrorResponse("ID inválido", "El ID debe ser un número entero"));
-        } catch (Exception e) {
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al activar tipo de reporte", e.getMessage()));
-        }
-    }
-
-    /**
-     * PATCH /hm/tipos-reporte/{id}/desactivar - Desactivar tipo
-     */
-    public void deactivateTipo(Context ctx) {
-        try {
-            int id = Integer.parseInt(ctx.pathParam("id"));
-            boolean desactivado = tipoReporteService.deactivateTipo(id);
-
-            if (desactivado) {
-                ctx.json(Map.of(
-                        "message", "Tipo de reporte desactivado exitosamente",
-                        "success", true
-                ));
-            } else {
-                ctx.status(HttpStatus.NOT_FOUND)
-                        .json(createErrorResponse("Tipo no encontrado", "No se pudo desactivar el tipo"));
-            }
-        } catch (NumberFormatException e) {
-            ctx.status(HttpStatus.BAD_REQUEST)
-                    .json(createErrorResponse("ID inválido", "El ID debe ser un número entero"));
-        } catch (Exception e) {
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al desactivar tipo de reporte", e.getMessage()));
         }
     }
 

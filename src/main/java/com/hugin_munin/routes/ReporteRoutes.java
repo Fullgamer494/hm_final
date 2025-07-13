@@ -18,15 +18,10 @@ public class ReporteRoutes {
 
         // CRUD básico
         app.get("/hm/reportes", reporteController::getAllReportes);
-        app.get("/hm/reportes/activos", reporteController::getActiveReportes);
         app.get("/hm/reportes/{id}", reporteController::getReporteById);
         app.post("/hm/reportes", reporteController::createReporte);
         app.put("/hm/reportes/{id}", reporteController::updateReporte);
         app.delete("/hm/reportes/{id}", reporteController::deleteReporte);
-
-        // Activar/Desactivar
-        app.patch("/hm/reportes/{id}/activar", reporteController::activateReporte);
-        app.patch("/hm/reportes/{id}/desactivar", reporteController::deactivateReporte);
 
         // Búsquedas específicas por atributos
         app.get("/hm/reportes/tipo/{id}", reporteController::getReportesByTipo);

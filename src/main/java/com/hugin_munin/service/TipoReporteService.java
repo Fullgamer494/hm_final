@@ -29,13 +29,6 @@ public class TipoReporteService {
     }
 
     /**
-     * OBTENER tipos de reporte activos
-     */
-    public List<TipoReporte> getActiveTipos() throws SQLException {
-        return tipoReporteRepository.findAllActive();
-    }
-
-    /**
      * OBTENER tipo de reporte por ID
      */
     public TipoReporte getTipoById(Integer id) throws SQLException {
@@ -134,44 +127,8 @@ public class TipoReporteService {
             throw new IllegalArgumentException("Tipo de reporte no encontrado con ID: " + id);
         }
 
-        // Verificar que el tipo no esté siendo usado en reportes
-        if (tipoReporteRepository.isTipoInUse(id)) {
-            // En lugar de eliminar, desactivar
-            return tipoReporteRepository.deactivateById(id);
-        }
-
         // Eliminación física si no está en uso
         return tipoReporteRepository.deleteById(id);
-    }
-
-    /**
-     * ACTIVAR tipo de reporte
-     */
-    public boolean activateTipo(Integer id) throws SQLException {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("ID inválido");
-        }
-
-        if (!tipoReporteRepository.existsById(id)) {
-            throw new IllegalArgumentException("Tipo de reporte no encontrado con ID: " + id);
-        }
-
-        return tipoReporteRepository.activateById(id);
-    }
-
-    /**
-     * DESACTIVAR tipo de reporte
-     */
-    public boolean deactivateTipo(Integer id) throws SQLException {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("ID inválido");
-        }
-
-        if (!tipoReporteRepository.existsById(id)) {
-            throw new IllegalArgumentException("Tipo de reporte no encontrado con ID: " + id);
-        }
-
-        return tipoReporteRepository.deactivateById(id);
     }
 
     /**
@@ -192,7 +149,6 @@ public class TipoReporteService {
         Map<String, Object> stats = new HashMap<>();
 
         stats.put("total_tipos", tipoReporteRepository.countTotal());
-        stats.put("tipos_activos", tipoReporteRepository.countActive());
 
         return stats;
     }
