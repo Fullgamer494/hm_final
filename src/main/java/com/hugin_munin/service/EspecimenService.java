@@ -18,8 +18,8 @@ import java.util.Date;
 import java.text.SimpleDateFormat;
 
 /**
- * Servicio para gestionar especímenes con lógica de creación unificada
- * Maneja la creación coordinada de especie, especimen y registro de alta
+ * Servicio para gestionar especímenes con lógica de creación unificada CORREGIDO
+ * Retorna estructuras de datos consistentes para el registro unificado
  */
 public class EspecimenService {
     private final EspecimenRepository especimenRepository;
@@ -79,36 +79,87 @@ public class EspecimenService {
     }
 
     /**
-     * Crear especimen con manejo unificado de especie y registro de alta
-     * Este método maneja todo el proceso de creación desde el formulario único del frontend
+     * MÉTODO CORREGIDO: Crear especimen con manejo unificado GARANTIZADO para registro unificado
      */
     public Map<String, Object> createSpecimenWithRegistration(Map<String, Object> requestData) throws SQLException {
-        // Extraer datos del mapa de solicitud
-        Map<String, String> especieData = (Map<String, String>) requestData.get("especie");
-        Map<String, Object> especimenData = (Map<String, Object>) requestData.get("especimen");
-        Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
+        System.out.println("🚀 EspecimenService.createSpecimenWithRegistration iniciado");
 
-        // Validar que todos los datos necesarios estén presentes
-        validateUnifiedRequestData(especieData, especimenData, registroData);
+        try {
+            // Extraer datos del mapa de solicitud
+            @SuppressWarnings("unchecked")
+            Map<String, String> especieData = (Map<String, String>) requestData.get("especie");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> especimenData = (Map<String, Object>) requestData.get("especimen");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
 
-        // 1. Buscar o crear la especie
-        Especie especie = findOrCreateEspecie(especieData);
+            System.out.println("📝 Datos extraídos:");
+            System.out.println("   especie: " + especieData);
+            System.out.println("   especimen: " + especimenData);
+            System.out.println("   registro: " + registroData);
 
-        // 2. Crear el especimen con la especie encontrada/creada
-        Especimen especimen = createSpecimen(especimenData, especie);
+            // Validar que todos los datos necesarios estén presentes
+            validateUnifiedRequestData(especieData, especimenData, registroData);
 
-        // 3. Crear el registro de alta
-        RegistroAlta registroAlta = createRegistroAlta(registroData, especimen);
+            // 1. Buscar o crear la especie
+            System.out.println("🔍 Paso 1: Buscar/crear especie...");
+            Especie especie = findOrCreateEspecie(especieData);
+            System.out.println("✅ Especie: ID=" + especie.getId_especie() + ", " + especie.getGenero() + " " + especie.getEspecie());
 
-        // Preparar respuesta completa
-        Map<String, Object> response = new HashMap<>();
-        response.put("especie", especie);
-        response.put("especimen", especimen);
-        response.put("registro_alta", registroAlta);
-        response.put("message", "Especimen registrado exitosamente con todos sus datos asociados");
-        response.put("success", true);
+            // 2. Crear el especimen con la especie encontrada/creada
+            System.out.println("🔍 Paso 2: Crear especimen...");
+            Especimen especimen = createSpecimen(especimenData, especie);
+            System.out.println("✅ Especimen: ID=" + especimen.getId_especimen() + ", Inventario=" + especimen.getNum_inventario());
 
-        return response;
+            // 3. Crear el registro de alta
+            System.out.println("🔍 Paso 3: Crear registro de alta...");
+            RegistroAlta registroAlta = createRegistroAlta(registroData, especimen);
+            System.out.println("✅ RegistroAlta: ID=" + registroAlta.getId_registro_alta());
+
+            // 4. Preparar respuesta ESTRUCTURADA Y GARANTIZADA
+            Map<String, Object> response = new HashMap<>();
+
+            // Información de la especie
+            Map<String, Object> especieInfo = new HashMap<>();
+            especieInfo.put("id_especie", especie.getId_especie());
+            especieInfo.put("genero", especie.getGenero());
+            especieInfo.put("especie", especie.getEspecie());
+
+            // Información del especimen - ESTRUCTURA GARANTIZADA
+            Map<String, Object> especimenInfo = new HashMap<>();
+            especimenInfo.put("id_especimen", especimen.getId_especimen());  // *** CLAVE CRÍTICA ***
+            especimenInfo.put("num_inventario", especimen.getNum_inventario());
+            especimenInfo.put("id_especie", especimen.getId_especie());
+            especimenInfo.put("nombre_especimen", especimen.getNombre_especimen());
+            especimenInfo.put("activo", especimen.isActivo());
+
+            // Información del registro de alta
+            Map<String, Object> registroInfo = new HashMap<>();
+            registroInfo.put("id_registro_alta", registroAlta.getId_registro_alta());
+            registroInfo.put("id_especimen", registroAlta.getId_especimen());
+            registroInfo.put("id_origen_alta", registroAlta.getId_origen_alta());
+            registroInfo.put("id_responsable", registroAlta.getId_responsable());
+            registroInfo.put("fecha_ingreso", registroAlta.getFecha_ingreso());
+            registroInfo.put("procedencia", registroAlta.getProcedencia());
+            registroInfo.put("observacion", registroAlta.getObservacion());
+
+            // Construir respuesta estructurada
+            response.put("especie", especieInfo);
+            response.put("especimen", especimenInfo);  // *** AQUÍ ESTÁ EL ID_ESPECIMEN ***
+            response.put("registro_alta", registroInfo);
+            response.put("message", "Especimen registrado exitosamente con todos sus datos asociados");
+            response.put("success", true);
+
+            System.out.println("🎉 Respuesta preparada exitosamente:");
+            System.out.println("   ID Especimen en respuesta: " + especimenInfo.get("id_especimen"));
+
+            return response;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error en createSpecimenWithRegistration: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     /**
@@ -118,32 +169,45 @@ public class EspecimenService {
         String genero = especieData.get("genero");
         String especie = especieData.get("especie");
 
+        System.out.println("🔍 Buscando especie: " + genero + " " + especie);
+
         // Buscar si ya existe la especie
         if (especieRepository.existsByGeneroAndEspecie(genero, especie)) {
             // Obtener la especie existente
             List<Especie> especies = especieRepository.findSpeciesByScientificName(genero + " " + especie);
             if (!especies.isEmpty()) {
+                System.out.println("✅ Especie encontrada: ID=" + especies.get(0).getId_especie());
                 return especies.get(0);
             }
         }
 
         // Crear nueva especie si no existe
+        System.out.println("🆕 Creando nueva especie...");
         Especie nuevaEspecie = new Especie();
         nuevaEspecie.setGenero(normalizeText(genero));
         nuevaEspecie.setEspecie(normalizeText(especie));
 
-        return especieRepository.saveSpecie(nuevaEspecie);
+        Especie especieCreada = especieRepository.saveSpecie(nuevaEspecie);
+        System.out.println("✅ Nueva especie creada: ID=" + especieCreada.getId_especie());
+        return especieCreada;
     }
 
     /**
      * Crear especimen con datos del mapa
      */
     private Especimen createSpecimen(Map<String, Object> especimenData, Especie especie) throws SQLException {
+        System.out.println("🔨 Creando especimen...");
+
         Especimen especimen = new Especimen();
         especimen.setNum_inventario((String) especimenData.get("num_inventario"));
         especimen.setId_especie(especie.getId_especie());
         especimen.setNombre_especimen((String) especimenData.get("nombre_especimen"));
         especimen.setActivo(true); // Por defecto activo
+
+        System.out.println("📋 Datos del especimen a crear:");
+        System.out.println("   Inventario: " + especimen.getNum_inventario());
+        System.out.println("   ID Especie: " + especimen.getId_especie());
+        System.out.println("   Nombre: " + especimen.getNombre_especimen());
 
         // Validar datos del especimen
         validateSpecimenData(especimen);
@@ -153,16 +217,18 @@ public class EspecimenService {
             throw new IllegalArgumentException("El número de inventario ya está en uso");
         }
 
-        return especimenRepository.saveSpecimen(especimen);
+        Especimen especimenCreado = especimenRepository.saveSpecimen(especimen);
+        System.out.println("✅ Especimen creado: ID=" + especimenCreado.getId_especimen());
+
+        return especimenCreado;
     }
 
-    /**
-     * Crear registro de alta
-     */
     /**
      * Crear registro de alta con manejo mejorado de fechas
      */
     private RegistroAlta createRegistroAlta(Map<String, Object> registroData, Especimen especimen) throws SQLException {
+        System.out.println("📝 Creando registro de alta...");
+
         RegistroAlta registro = new RegistroAlta();
         registro.setId_especimen(especimen.getId_especimen());
         registro.setId_origen_alta((Integer) registroData.get("id_origen_alta"));
@@ -170,16 +236,19 @@ public class EspecimenService {
         registro.setProcedencia((String) registroData.get("procedencia"));
         registro.setObservacion((String) registroData.get("observacion"));
 
+        System.out.println("📋 Datos del registro de alta:");
+        System.out.println("   ID Especimen: " + registro.getId_especimen());
+        System.out.println("   ID Origen: " + registro.getId_origen_alta());
+        System.out.println("   ID Responsable: " + registro.getId_responsable());
+
         // MANEJO MEJORADO DE FECHAS
         if (registroData.containsKey("fecha_ingreso")) {
             Object fechaObj = registroData.get("fecha_ingreso");
 
             if (fechaObj instanceof Date) {
-                // Si ya es un Date, usarlo directamente
                 registro.setFecha_ingreso((Date) fechaObj);
                 System.out.println("✅ Usando fecha Date existente: " + fechaObj);
             } else if (fechaObj instanceof String) {
-                // Si es String, convertir
                 String fechaStr = (String) fechaObj;
                 if (!fechaStr.trim().isEmpty()) {
                     try {
@@ -189,7 +258,7 @@ public class EspecimenService {
                         System.out.println("✅ Fecha convertida de String: " + fechaStr + " -> " + fecha);
                     } catch (Exception e) {
                         System.err.println("❌ Error al convertir fecha String: " + fechaStr);
-                        registro.setFecha_ingreso(new Date()); // Usar fecha actual como fallback
+                        registro.setFecha_ingreso(new Date());
                     }
                 } else {
                     registro.setFecha_ingreso(new Date());
@@ -203,7 +272,6 @@ public class EspecimenService {
                 registro.setFecha_ingreso(new Date());
             }
         } else {
-            // Si no hay campo fecha_ingreso, usar fecha actual
             registro.setFecha_ingreso(new Date());
             System.out.println("✅ Usando fecha actual por ausencia de campo");
         }
@@ -211,7 +279,10 @@ public class EspecimenService {
         // Validar que las referencias existan
         validateRegistroReferences(registro);
 
-        return registroAltaRepository.saveRegister(registro);
+        RegistroAlta registroCreado = registroAltaRepository.saveRegister(registro);
+        System.out.println("✅ Registro de alta creado: ID=" + registroCreado.getId_registro_alta());
+
+        return registroCreado;
     }
 
     /**

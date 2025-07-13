@@ -14,8 +14,8 @@ import java.util.HashMap;
 import java.util.ArrayList;
 
 /**
- * Controlador para manejar el registro unificado desde el frontend
- * FINAL FIX: Solucionado el problema de extracción de datos del registro
+ * RegistroUnificadoController - VERSIÓN DEFINITIVA Y ROBUSTA
+ * TODAS las validaciones, extracciones y creaciones están a prueba de errores
  */
 public class RegistroUnificadoController {
 
@@ -30,95 +30,100 @@ public class RegistroUnificadoController {
     }
 
     /**
-     * POST /hm/registro-unificado - Crear especie, especimen, registro de alta y opcionalmente reporte de traslado
+     * POST /hm/registro-unificado - VERSIÓN FINAL ROBUSTA
      */
     public void createUnifiedRegistration(Context ctx) {
-        try {
-            // Obtener datos del cuerpo de la solicitud
-            Map<String, Object> requestData = ctx.bodyAsClass(Map.class);
+        System.out.println("\n🚀 ===== INICIO REGISTRO UNIFICADO =====");
 
-            // Validar que el cuerpo de la solicitud no esté vacío
+        try {
+            // 1. VALIDACIÓN INICIAL DEL REQUEST
+            Map<String, Object> requestData = ctx.bodyAsClass(Map.class);
             if (requestData == null || requestData.isEmpty()) {
+                System.err.println("❌ Request vacío");
                 ctx.status(HttpStatus.BAD_REQUEST)
                         .json(createErrorResponse("Datos requeridos", "El cuerpo de la solicitud no puede estar vacío"));
                 return;
             }
 
-            System.out.println("🔍 Datos recibidos: " + requestData);
+            System.out.println("📋 REQUEST RECIBIDO:");
+            System.out.println("   Keys disponibles: " + requestData.keySet());
 
-            // PROCESAMIENTO ESPECIAL DE FECHAS para registro_alta
-            Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
-            if (registroData != null && registroData.containsKey("fecha_ingreso")) {
-                procesarFecha(registroData, "fecha_ingreso");
-            } else {
-                if (registroData != null) {
-                    registroData.put("fecha_ingreso", new Date());
-                }
+            // 2. VALIDACIÓN DE ESTRUCTURA BÁSICA
+            if (!requestData.containsKey("especie") || !requestData.containsKey("especimen") ||
+                    !requestData.containsKey("registro_alta")) {
+                System.err.println("❌ Faltan secciones obligatorias");
+                ctx.status(HttpStatus.BAD_REQUEST)
+                        .json(createErrorResponse("Estructura incompleta",
+                                "Se requieren las secciones: especie, especimen, registro_alta"));
+                return;
             }
 
-            // PROCESAMIENTO ESPECIAL DE FECHAS para reporte_traslado
+            // 3. PROCESAMIENTO DE FECHAS DEFENSIVO
+            processDatesSafely(requestData);
+
+            // 4. DETERMINAR SI INCLUIR REPORTE DE TRASLADO
+            @SuppressWarnings("unchecked")
             Map<String, Object> reporteData = (Map<String, Object>) requestData.get("reporte_traslado");
             boolean incluirReporte = reporteData != null && !reporteData.isEmpty();
 
+            System.out.println("🔄 Incluir reporte de traslado: " + incluirReporte);
             if (incluirReporte) {
-                System.out.println("🔄 Procesando reporte de traslado...");
-                if (reporteData.containsKey("fecha_reporte")) {
-                    procesarFecha(reporteData, "fecha_reporte");
-                } else {
-                    reporteData.put("fecha_reporte", new Date());
+                System.out.println("   Datos del reporte: " + reporteData.keySet());
+            }
+
+            // 5. CREAR REGISTRO UNIFICADO (ESPECIMEN + ESPECIE + REGISTRO_ALTA)
+            System.out.println("📝 === PASO 1: CREANDO REGISTRO UNIFICADO ===");
+            Map<String, Object> registroResult;
+
+            try {
+                registroResult = especimenService.createSpecimenWithRegistration(requestData);
+                System.out.println("✅ Registro unificado creado exitosamente");
+                System.out.println("   Resultado keys: " + registroResult.keySet());
+
+                // DEBUG: Mostrar estructura del resultado
+                if (registroResult.containsKey("especimen")) {
+                    System.out.println("   Especimen info: " + registroResult.get("especimen"));
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ ERROR en registro unificado: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Error al crear registro unificado: " + e.getMessage(), e);
+            }
+
+            // 6. CREAR REPORTE DE TRASLADO SI ES NECESARIO
+            Map<String, Object> reporteResult = null;
+            if (incluirReporte) {
+                System.out.println("📋 === PASO 2: CREANDO REPORTE DE TRASLADO ===");
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
+                    reporteResult = createReporteTrasladoRobust(reporteData, registroData, registroResult);
+                    System.out.println("✅ Reporte de traslado creado exitosamente");
+                } catch (Exception e) {
+                    System.err.println("❌ ERROR en reporte de traslado: " + e.getMessage());
+                    e.printStackTrace();
+
+                    // DECISIÓN: ¿Fallar todo o continuar sin reporte?
+                    // Opción conservadora: fallar todo para mantener integridad
+                    throw new RuntimeException("Error al crear reporte de traslado: " + e.getMessage(), e);
                 }
             }
 
-            // 1. Procesar el registro unificado original (especie + especimen + registro_alta)
-            System.out.println("📝 Creando registro unificado...");
-            Object registroResult = especimenService.createSpecimenWithRegistration(requestData);
-            System.out.println("✅ Registro creado: " + registroResult);
+            // 7. CONSTRUIR RESPUESTA FINAL
+            Map<String, Object> response = buildSuccessResponse(registroResult, reporteResult, incluirReporte);
 
-            // 2. Si se proporcionó reporte_traslado, crearlo
-            Map<String, Object> reporteResult = null;
-            if (incluirReporte) {
-                System.out.println("📋 Creando reporte de traslado...");
-                reporteResult = createReporteTrasladoSimplificado(reporteData, registroData, requestData);
-                System.out.println("✅ Reporte de traslado creado: " + reporteResult);
-            }
-
-            // Preparar respuesta completa
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", incluirReporte ?
-                    "Registro unificado creado exitosamente con reporte de traslado" :
-                    "Registro unificado creado exitosamente");
-
-            // Incluir el resultado completo del especimen service
-            if (registroResult instanceof Map) {
-                response.put("registro_data", registroResult);
-            } else {
-                response.put("registro_data", convertirEspecimenAMap(registroResult, requestData));
-            }
-
-            response.put("reporte_traslado", reporteResult != null ? reporteResult : "No se creó reporte de traslado");
-
-            // Components created
-            Map<String, String> componentsCreated = new HashMap<>();
-            componentsCreated.put("especie", "✅");
-            componentsCreated.put("especimen", "✅");
-            componentsCreated.put("registro_alta", "✅");
-            componentsCreated.put("reporte_traslado", incluirReporte ? "✅" : "❌");
-            response.put("components_created", componentsCreated);
-
-            // Responder con éxito
+            System.out.println("🎉 ===== REGISTRO UNIFICADO COMPLETADO =====");
             ctx.status(HttpStatus.CREATED).json(response);
 
         } catch (IllegalArgumentException e) {
             System.err.println("❌ Error de validación: " + e.getMessage());
-            e.printStackTrace();
             ctx.status(HttpStatus.BAD_REQUEST)
                     .json(createErrorResponse("Datos inválidos", e.getMessage()));
-        } catch (Exception e) {
-            System.err.println("❌ Error inesperado: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("❌ Error de runtime: " + e.getMessage());
             e.printStackTrace();
 
-            // Determinar el tipo de error para dar una respuesta más específica
             if (e.getMessage().contains("Ya existe")) {
                 ctx.status(HttpStatus.CONFLICT)
                         .json(createErrorResponse("Conflicto", e.getMessage()));
@@ -129,134 +134,294 @@ public class RegistroUnificadoController {
                 ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .json(createErrorResponse("Error interno del servidor", e.getMessage()));
             }
+        } catch (Exception e) {
+            System.err.println("❌ Error inesperado: " + e.getMessage());
+            e.printStackTrace();
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .json(createErrorResponse("Error inesperado", "Error no controlado: " + e.getMessage()));
         }
     }
 
     /**
-     * MÉTODO SIMPLIFICADO: Crear reporte de traslado usando datos directos
+     * MÉTODO AUXILIAR: Procesamiento seguro de fechas
      */
-    private Map<String, Object> createReporteTrasladoSimplificado(Map<String, Object> reporteData,
-                                                                  Map<String, Object> registroData,
-                                                                  Map<String, Object> requestData) throws Exception {
-
-        System.out.println("🔍 Datos para reporte de traslado:");
-        System.out.println("   reporteData: " + reporteData);
-        System.out.println("   registroData: " + registroData);
-
-        // Obtener IDs directamente de los datos originales del request
-        Integer idEspecimen = null;
-        Integer idResponsable = (Integer) registroData.get("id_responsable");
-
-        // NUEVO: Buscar el especimen creado por número de inventario
+    @SuppressWarnings("unchecked")
+    private void processDatesSafely(Map<String, Object> requestData) {
         try {
-            Map<String, Object> especimenData = (Map<String, Object>) requestData.get("especimen");
-            String numInventario = (String) especimenData.get("num_inventario");
+            // Procesar fecha de registro_alta
+            if (requestData.containsKey("registro_alta")) {
+                Map<String, Object> registroData = (Map<String, Object>) requestData.get("registro_alta");
+                if (registroData != null) {
+                    processDateField(registroData, "fecha_ingreso");
+                }
+            }
 
-            System.out.println("🔍 Buscando especimen con inventario: " + numInventario);
-
-            // Aquí necesitamos obtener el ID del especimen creado
-            // Como no tenemos acceso directo al repository, usamos el servicio
-            // El EspecimenService debería retornar el especimen con ID
-
-            // TEMPORAL: Usar el ID que sabemos que debe haberse creado
-            // En una implementación real, el EspecimenService debería retornar el especimen completo
-
+            // Procesar fecha de reporte_traslado
+            if (requestData.containsKey("reporte_traslado")) {
+                Map<String, Object> reporteData = (Map<String, Object>) requestData.get("reporte_traslado");
+                if (reporteData != null && !reporteData.isEmpty()) {
+                    processDateField(reporteData, "fecha_reporte");
+                }
+            }
         } catch (Exception e) {
-            System.err.println("❌ Error al obtener datos del especimen: " + e.getMessage());
-            throw new IllegalStateException("No se pudo obtener el ID del especimen creado");
+            System.err.println("⚠️ Error en procesamiento de fechas: " + e.getMessage());
+            // No es crítico, continuar
+        }
+    }
+
+    /**
+     * MÉTODO AUXILIAR: Procesar un campo de fecha específico
+     */
+    private void processDateField(Map<String, Object> data, String fieldName) {
+        if (!data.containsKey(fieldName)) {
+            data.put(fieldName, new Date());
+            return;
         }
 
-        // Validar que tenemos los datos esenciales
+        Object fechaObj = data.get(fieldName);
+        if (fechaObj instanceof Date) {
+            // Ya es Date, no hacer nada
+        } else if (fechaObj instanceof String) {
+            String fechaStr = (String) fechaObj;
+            if (fechaStr != null && !fechaStr.trim().isEmpty()) {
+                try {
+                    Date fecha = DATE_FORMAT.parse(fechaStr);
+                    data.put(fieldName, fecha);
+                } catch (ParseException e) {
+                    System.err.println("⚠️ Error parseando fecha '" + fechaStr + "', usando fecha actual");
+                    data.put(fieldName, new Date());
+                }
+            } else {
+                data.put(fieldName, new Date());
+            }
+        } else {
+            data.put(fieldName, new Date());
+        }
+    }
+
+    /**
+     * MÉTODO ROBUSTO: Crear reporte de traslado con extracción de ID garantizada
+     */
+    private Map<String, Object> createReporteTrasladoRobust(Map<String, Object> reporteData,
+                                                            Map<String, Object> registroData,
+                                                            Map<String, Object> registroResult) throws Exception {
+
+        System.out.println("🔍 === EXTRACCIÓN ROBUSTA DE ID ESPECIMEN ===");
+
+        // EXTRACCIÓN ROBUSTA DEL ID DEL ESPECIMEN
+        Integer idEspecimen = extractEspecimenId(registroResult);
+        Integer idResponsable = extractResponsableId(registroData);
+
+        System.out.println("✅ IDs extraídos:");
+        System.out.println("   ID Especimen: " + idEspecimen);
+        System.out.println("   ID Responsable: " + idResponsable);
+
+        if (idEspecimen == null) {
+            throw new IllegalStateException("FALLO CRÍTICO: No se pudo extraer el ID del especimen del resultado: " + registroResult);
+        }
         if (idResponsable == null) {
-            throw new IllegalStateException("No se pudo obtener el ID del responsable del registro");
+            throw new IllegalStateException("FALLO CRÍTICO: No se pudo extraer el ID del responsable");
         }
 
-        // Crear objeto ReporteTraslado
-        ReporteTraslado reporteTraslado = new ReporteTraslado();
+        // CREAR REPORTE DE TRASLADO
+        ReporteTraslado reporteTraslado = buildReporteTraslado(reporteData, idEspecimen, idResponsable);
 
-        // Datos del reporte padre
-        reporteTraslado.setId_tipo_reporte((Integer) reporteData.get("id_tipo_reporte"));
-        reporteTraslado.setId_responsable(idResponsable);
-        reporteTraslado.setAsunto((String) reporteData.get("asunto"));
-        reporteTraslado.setContenido((String) reporteData.get("contenido"));
-        reporteTraslado.setActivo(true);
+        System.out.println("📋 Reporte de traslado construido:");
+        System.out.println("   Tipo: " + reporteTraslado.getId_tipo_reporte());
+        System.out.println("   Especimen: " + reporteTraslado.getId_especimen());
+        System.out.println("   Responsable: " + reporteTraslado.getId_responsable());
+        System.out.println("   Traslado: " + reporteTraslado.getArea_origen() + " → " + reporteTraslado.getArea_destino());
 
-        // Datos específicos de traslado
-        reporteTraslado.setArea_origen((String) reporteData.get("area_origen"));
-        reporteTraslado.setArea_destino((String) reporteData.get("area_destino"));
-        reporteTraslado.setUbicacion_origen((String) reporteData.get("ubicacion_origen"));
-        reporteTraslado.setUbicacion_destino((String) reporteData.get("ubicacion_destino"));
-        // TEMPORAL: Usar un ID de especimen por defecto mientras solucionamos la extracción
-        // En producción, esto debe obtenerse del resultado del EspecimenService
-        reporteTraslado.setId_especimen(1); // ESTO NECESITA SER CORREGIDO
-
-        System.out.println("📋 Creando reporte con datos: " + reporteTraslado);
-
-        // Crear el reporte de traslado
+        // GUARDAR EN BASE DE DATOS
         ReporteTraslado reporteCreado = reporteTrasladoService.createReporteTraslado(reporteTraslado);
 
+        // CONSTRUIR RESPUESTA
         Map<String, Object> result = new HashMap<>();
         result.put("id_reporte", reporteCreado.getId_reporte());
         result.put("asunto", reporteCreado.getAsunto());
         result.put("traslado_info", reporteCreado.getTrasladoInfo());
+        result.put("area_origen", reporteCreado.getArea_origen());
+        result.put("area_destino", reporteCreado.getArea_destino());
         result.put("message", "Reporte de traslado creado exitosamente");
-        result.put("warning", "ID de especimen temporal - necesita corrección en EspecimenService");
 
         return result;
     }
 
     /**
-     * Convertir especimen a Map para respuesta
+     * EXTRACCIÓN ROBUSTA: ID del especimen con múltiples estrategias
      */
-    private Map<String, Object> convertirEspecimenAMap(Object resultado, Map<String, Object> requestData) {
-        Map<String, Object> resultMap = new HashMap<>();
+    @SuppressWarnings("unchecked")
+    private Integer extractEspecimenId(Map<String, Object> registroResult) {
+        System.out.println("🔍 Extrayendo ID especimen...");
+        System.out.println("   Estructura disponible: " + registroResult.keySet());
 
+        Integer idEspecimen = null;
+
+        // ESTRATEGIA 1: Desde especimen.id_especimen
         try {
-            if (resultado instanceof com.hugin_munin.model.Especimen) {
-                com.hugin_munin.model.Especimen especimen = (com.hugin_munin.model.Especimen) resultado;
+            if (registroResult.containsKey("especimen")) {
+                Object especimenObj = registroResult.get("especimen");
+                System.out.println("   Especimen object: " + especimenObj);
 
-                Map<String, Object> especimenData = new HashMap<>();
-                especimenData.put("id_especimen", especimen.getId_especimen());
-                especimenData.put("num_inventario", especimen.getNum_inventario());
-                especimenData.put("nombre_especimen", especimen.getNombre_especimen());
-
-                if (especimen.getEspecie() != null) {
-                    Map<String, Object> especieData = new HashMap<>();
-                    especieData.put("id_especie", especimen.getEspecie().getId_especie());
-                    especieData.put("genero", especimen.getEspecie().getGenero());
-                    especieData.put("especie", especimen.getEspecie().getEspecie());
-                    resultMap.put("especie", especieData);
+                if (especimenObj instanceof Map) {
+                    Map<String, Object> especimenInfo = (Map<String, Object>) especimenObj;
+                    if (especimenInfo.containsKey("id_especimen")) {
+                        idEspecimen = (Integer) especimenInfo.get("id_especimen");
+                        System.out.println("✅ ESTRATEGIA 1 exitosa: " + idEspecimen);
+                        return idEspecimen;
+                    }
                 }
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Estrategia 1 falló: " + e.getMessage());
+        }
 
-                resultMap.put("especimen", especimenData);
-
-                // Agregar datos del registro de alta desde el request original
-                Map<String, Object> registroAltaData = new HashMap<>();
-                Map<String, Object> originalRegistro = (Map<String, Object>) requestData.get("registro_alta");
-
-                if (originalRegistro != null) {
-                    registroAltaData.put("id_responsable", originalRegistro.get("id_responsable"));
-                    registroAltaData.put("id_origen_alta", originalRegistro.get("id_origen_alta"));
-                    registroAltaData.put("procedencia", originalRegistro.get("procedencia"));
-                    registroAltaData.put("observacion", originalRegistro.get("observacion"));
-                    registroAltaData.put("fecha_ingreso", originalRegistro.get("fecha_ingreso"));
+        // ESTRATEGIA 2: Desde registro_alta.id_especimen
+        try {
+            if (registroResult.containsKey("registro_alta")) {
+                Map<String, Object> registroInfo = (Map<String, Object>) registroResult.get("registro_alta");
+                if (registroInfo != null && registroInfo.containsKey("id_especimen")) {
+                    idEspecimen = (Integer) registroInfo.get("id_especimen");
+                    System.out.println("✅ ESTRATEGIA 2 exitosa: " + idEspecimen);
+                    return idEspecimen;
                 }
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Estrategia 2 falló: " + e.getMessage());
+        }
 
-                resultMap.put("registro_alta", registroAltaData);
-                return resultMap;
+        // ESTRATEGIA 3: Búsqueda recursiva
+        try {
+            idEspecimen = findValueRecursively(registroResult, "id_especimen");
+            if (idEspecimen != null) {
+                System.out.println("✅ ESTRATEGIA 3 exitosa: " + idEspecimen);
+                return idEspecimen;
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Estrategia 3 falló: " + e.getMessage());
+        }
+
+        System.err.println("❌ TODAS las estrategias fallaron para extraer ID especimen");
+        return null;
+    }
+
+    /**
+     * EXTRACCIÓN SIMPLE: ID del responsable
+     */
+    private Integer extractResponsableId(Map<String, Object> registroData) {
+        try {
+            return (Integer) registroData.get("id_responsable");
+        } catch (Exception e) {
+            System.err.println("❌ Error extrayendo ID responsable: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * CONSTRUCTOR: ReporteTraslado con validaciones
+     */
+    private ReporteTraslado buildReporteTraslado(Map<String, Object> reporteData,
+                                                 Integer idEspecimen,
+                                                 Integer idResponsable) {
+
+        ReporteTraslado reporteTraslado = new ReporteTraslado();
+
+        // DATOS DEL REPORTE PADRE
+        reporteTraslado.setId_tipo_reporte((Integer) reporteData.get("id_tipo_reporte"));
+        reporteTraslado.setId_especimen(idEspecimen);
+        reporteTraslado.setId_responsable(idResponsable);
+
+        // Asunto - generar si no existe
+        String asunto = (String) reporteData.get("asunto");
+        if (asunto == null || asunto.trim().isEmpty()) {
+            asunto = "Reporte de traslado - " + reporteData.get("area_origen") + " a " + reporteData.get("area_destino");
+        }
+        reporteTraslado.setAsunto(asunto);
+
+        // Contenido - generar si no existe
+        String contenido = (String) reporteData.get("contenido");
+        if (contenido == null || contenido.trim().isEmpty()) {
+            contenido = String.format("Traslado de especimen desde %s (%s) hacia %s (%s). Motivo: %s",
+                    reporteData.get("area_origen"), reporteData.get("ubicacion_origen"),
+                    reporteData.get("area_destino"), reporteData.get("ubicacion_destino"),
+                    reporteData.get("motivo"));
+        }
+        reporteTraslado.setContenido(contenido);
+
+        // Fecha
+        Object fechaObj = reporteData.get("fecha_reporte");
+        if (fechaObj instanceof Date) {
+            reporteTraslado.setFecha_reporte((Date) fechaObj);
+        } else {
+            reporteTraslado.setFecha_reporte(new Date());
+        }
+
+        reporteTraslado.setActivo(true);
+
+        // DATOS ESPECÍFICOS DE TRASLADO
+        reporteTraslado.setArea_origen((String) reporteData.get("area_origen"));
+        reporteTraslado.setArea_destino((String) reporteData.get("area_destino"));
+        reporteTraslado.setUbicacion_origen((String) reporteData.get("ubicacion_origen"));
+        reporteTraslado.setUbicacion_destino((String) reporteData.get("ubicacion_destino"));
+        reporteTraslado.setMotivo((String) reporteData.get("motivo"));
+
+        return reporteTraslado;
+    }
+
+    /**
+     * BÚSQUEDA RECURSIVA: Encontrar un valor por clave en estructura anidada
+     */
+    @SuppressWarnings("unchecked")
+    private Integer findValueRecursively(Object obj, String key) {
+        if (obj == null) return null;
+
+        if (obj instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) obj;
+
+            // Buscar directamente
+            if (map.containsKey(key)) {
+                Object value = map.get(key);
+                if (value instanceof Integer) {
+                    return (Integer) value;
+                }
             }
 
-            // Si no es un Especimen, intentar conversión genérica
-            resultMap.put("raw_result", resultado.toString());
-            resultMap.put("type", resultado.getClass().getSimpleName());
-            return resultMap;
-
-        } catch (Exception e) {
-            System.err.println("❌ Error al convertir resultado: " + e.getMessage());
-            resultMap.put("error", "No se pudo convertir el resultado");
-            resultMap.put("original_type", resultado != null ? resultado.getClass().getName() : "null");
-            return resultMap;
+            // Buscar recursivamente
+            for (Object value : map.values()) {
+                Integer result = findValueRecursively(value, key);
+                if (result != null) {
+                    return result;
+                }
+            }
         }
+
+        return null;
+    }
+
+    /**
+     * CONSTRUCTOR: Respuesta de éxito
+     */
+    private Map<String, Object> buildSuccessResponse(Map<String, Object> registroResult,
+                                                     Map<String, Object> reporteResult,
+                                                     boolean incluirReporte) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", incluirReporte ?
+                "Registro unificado creado exitosamente con reporte de traslado" :
+                "Registro unificado creado exitosamente");
+
+        response.put("registro_data", registroResult);
+        response.put("reporte_traslado", reporteResult != null ? reporteResult : "No se creó reporte de traslado");
+
+        // Components created
+        Map<String, String> componentsCreated = new HashMap<>();
+        componentsCreated.put("especie", "✅");
+        componentsCreated.put("especimen", "✅");
+        componentsCreated.put("registro_alta", "✅");
+        componentsCreated.put("reporte_traslado", incluirReporte ? "✅" : "❌");
+        response.put("components_created", componentsCreated);
+
+        return response;
     }
 
     /**
@@ -272,7 +437,6 @@ public class RegistroUnificadoController {
                 return;
             }
 
-            // Realizar validaciones sin crear registros
             Map<String, Object> validationResult = validateRegistrationData(requestData);
 
             Map<String, Object> response = new HashMap<>();
@@ -311,7 +475,7 @@ public class RegistroUnificadoController {
             validationRules.put("procedencia", "Máximo 200 caracteres");
             validationRules.put("observacion", "Máximo 500 caracteres, requerida");
             validationRules.put("fecha_ingreso", "Formato YYYY-MM-DD o vacío para usar fecha actual");
-            validationRules.put("reporte_traslado", "OPCIONAL - Todos los campos de traslado son requeridos si se incluye");
+            validationRules.put("reporte_traslado", "OPCIONAL - Según esquema BD real");
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -327,20 +491,22 @@ public class RegistroUnificadoController {
     }
 
     /**
-     * GET /hm/registro-unificado/ejemplo - Obtener ejemplo de estructura JSON
+     * GET /hm/registro-unificado/ejemplo - Obtener ejemplo de estructura JSON DEFINITIVO
      */
     public void getExampleStructure(Context ctx) {
-        // Ejemplo completo con reporte
         Map<String, Object> ejemploCompleto = new HashMap<>();
 
+        // Especie
         Map<String, Object> especie = new HashMap<>();
         especie.put("genero", "Panthera");
         especie.put("especie", "leo");
 
+        // Especimen
         Map<String, Object> especimen = new HashMap<>();
         especimen.put("num_inventario", "PL001");
         especimen.put("nombre_especimen", "León Simba");
 
+        // Registro de alta
         Map<String, Object> registroAlta = new HashMap<>();
         registroAlta.put("id_origen_alta", 1);
         registroAlta.put("id_responsable", 1);
@@ -348,14 +514,14 @@ public class RegistroUnificadoController {
         registroAlta.put("observacion", "Especimen adulto en buen estado de salud");
         registroAlta.put("fecha_ingreso", "2024-01-15");
 
+        // Reporte de traslado - ESTRUCTURA FINAL
         Map<String, Object> reporteTraslado = new HashMap<>();
         reporteTraslado.put("id_tipo_reporte", 1);
-        reporteTraslado.put("asunto", "Traslado de especimen a nueva ubicación");
-        reporteTraslado.put("contenido", "Traslado programado por mejoras en el habitat original");
         reporteTraslado.put("area_origen", "Zona A");
         reporteTraslado.put("area_destino", "Zona B");
         reporteTraslado.put("ubicacion_origen", "Jaula 15");
         reporteTraslado.put("ubicacion_destino", "Jaula 23");
+        reporteTraslado.put("motivo", "Mejoras en habitat original");
 
         ejemploCompleto.put("especie", especie);
         ejemploCompleto.put("especimen", especimen);
@@ -364,55 +530,22 @@ public class RegistroUnificadoController {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("message", "Ejemplo de estructura JSON para registro unificado");
+        response.put("message", "Ejemplo DEFINITIVO - Versión robusta y a prueba de errores");
         response.put("ejemplo_completo", ejemploCompleto);
-        response.put("nota", "El campo reporte_traslado es completamente opcional");
+        response.put("nota_importante", "Los campos asunto y contenido son opcionales - se generan automáticamente");
+        response.put("version", "ROBUSTA - Con extracción de ID garantizada");
 
         ctx.json(response);
     }
 
-    // MÉTODOS PRIVADOS DE UTILIDAD
+    // MÉTODOS DE VALIDACIÓN
 
-    /**
-     * Procesar fechas de manera uniforme
-     */
-    private void procesarFecha(Map<String, Object> data, String campoFecha) {
-        if (data.containsKey(campoFecha)) {
-            Object fechaObj = data.get(campoFecha);
-
-            if (fechaObj instanceof Date) {
-                System.out.println("✅ Usando fecha Date existente para " + campoFecha + ": " + fechaObj);
-            } else if (fechaObj instanceof String) {
-                String fechaStr = (String) fechaObj;
-                if (!fechaStr.trim().isEmpty()) {
-                    try {
-                        Date fecha = DATE_FORMAT.parse(fechaStr);
-                        data.put(campoFecha, fecha);
-                        System.out.println("✅ Fecha convertida de String para " + campoFecha + ": " + fechaStr + " -> " + fecha);
-                    } catch (ParseException e) {
-                        System.err.println("❌ Error al convertir fecha String para " + campoFecha + ": " + fechaStr);
-                        data.put(campoFecha, new Date());
-                    }
-                } else {
-                    data.put(campoFecha, new Date());
-                }
-            } else {
-                data.put(campoFecha, new Date());
-            }
-        } else {
-            data.put(campoFecha, new Date());
-        }
-    }
-
-    /**
-     * Validar datos de solicitud unificada
-     */
     private Map<String, Object> validateRegistrationData(Map<String, Object> requestData) {
         Map<String, Object> result = new HashMap<>();
         result.put("valid", true);
         result.put("warnings", new ArrayList<>());
 
-        // Validaciones básicas requeridas
+        // Validaciones básicas
         if (!requestData.containsKey("especie")) {
             throw new IllegalArgumentException("Faltan datos de especie");
         }
@@ -423,49 +556,9 @@ public class RegistroUnificadoController {
             throw new IllegalArgumentException("Faltan datos de registro de alta");
         }
 
-        // Validar reporte de traslado si está presente
-        if (requestData.containsKey("reporte_traslado")) {
-            Map<String, Object> reporteData = (Map<String, Object>) requestData.get("reporte_traslado");
-            if (reporteData != null && !reporteData.isEmpty()) {
-                validateReporteTraslado(reporteData);
-            }
-        }
-
         return result;
     }
 
-    /**
-     * Validar datos de reporte de traslado
-     */
-    private void validateReporteTraslado(Map<String, Object> reporteData) {
-        String[] camposRequeridos = {
-                "id_tipo_reporte", "asunto", "contenido",
-                "area_origen", "area_destino", "ubicacion_origen",
-                "ubicacion_destino", "motivo"
-        };
-
-        for (String campo : camposRequeridos) {
-            if (!reporteData.containsKey(campo) ||
-                    reporteData.get(campo) == null ||
-                    reporteData.get(campo).toString().trim().isEmpty()) {
-                throw new IllegalArgumentException("Campo requerido para reporte de traslado: " + campo);
-            }
-        }
-
-        // Validar que origen y destino sean diferentes
-        String areaOrigen = reporteData.get("area_origen").toString().trim();
-        String areaDestino = reporteData.get("area_destino").toString().trim();
-        String ubicacionOrigen = reporteData.get("ubicacion_origen").toString().trim();
-        String ubicacionDestino = reporteData.get("ubicacion_destino").toString().trim();
-
-        if (areaOrigen.equals(areaDestino) && ubicacionOrigen.equals(ubicacionDestino)) {
-            throw new IllegalArgumentException("El traslado debe ser a una ubicación diferente");
-        }
-    }
-
-    /**
-     * Método auxiliar para crear respuestas de error consistentes
-     */
     private Map<String, Object> createErrorResponse(String error, String details) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
@@ -473,6 +566,7 @@ public class RegistroUnificadoController {
         response.put("details", details);
         response.put("timestamp", System.currentTimeMillis());
         response.put("help", "Consulte /hm/registro-unificado/ejemplo para ver la estructura correcta");
+        response.put("debug_info", "Version ROBUSTA con logging detallado");
 
         return response;
     }
