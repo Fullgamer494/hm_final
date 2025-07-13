@@ -13,6 +13,26 @@ import com.hugin_munin.service.*;
 public class AppModule {
 
     /**
+     * Inicializar módulo de autenticación
+     */
+    public static AuthRoutes initAuth() {
+        UsuarioRepository usuarioRepository = new UsuarioRepository();
+        AuthService authService = new AuthService(usuarioRepository);
+        AuthController authController = new AuthController(authService);
+
+        return new AuthRoutes(authController);
+    }
+
+    /**
+     * Obtener instancia del servicio de autenticación
+     * Para uso en middleware
+     */
+    public static AuthService getAuthService() {
+        UsuarioRepository usuarioRepository = new UsuarioRepository();
+        return new AuthService(usuarioRepository);
+    }
+
+    /**
      * Inicializar módulo de roles
      */
     public static RolRoutes initRoles() {
