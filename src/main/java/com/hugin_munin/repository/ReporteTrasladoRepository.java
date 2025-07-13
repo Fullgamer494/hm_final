@@ -153,6 +153,263 @@ public class ReporteTrasladoRepository {
     }
 
     /**
+     * BUSCAR todos los reportes de traslado
+     */
+    public List<ReporteTraslado> findAll() throws SQLException {
+        String query = COMPLETE_QUERY + " ORDER BY r.fecha_reporte DESC";
+        return executeQueryWithJoins(query);
+    }
+
+    /**
+     * BUSCAR reporte de traslado por ID
+     */
+    public Optional<ReporteTraslado> findById(Integer id) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE rt.id_reporte = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, id);
+            List<ReporteTraslado> results = executeQueryWithJoins(stmt);
+            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por área origen
+     */
+    public List<ReporteTraslado> findByAreaOrigen(String areaOrigen) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE rt.area_origen = ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, areaOrigen);
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por área destino
+     */
+    public List<ReporteTraslado> findByAreaDestino(String areaDestino) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE rt.area_destino = ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, areaDestino);
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por ubicación origen
+     */
+    public List<ReporteTraslado> findByUbicacionOrigen(String ubicacionOrigen) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE rt.ubicacion_origen = ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, ubicacionOrigen);
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por ubicación destino
+     */
+    public List<ReporteTraslado> findByUbicacionDestino(String ubicacionDestino) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE rt.ubicacion_destino = ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, ubicacionDestino);
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por motivo (búsqueda parcial)
+     */
+    public List<ReporteTraslado> findByMotivoContaining(String motivo) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE rt.motivo LIKE ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, "%" + motivo + "%");
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por especimen
+     */
+    public List<ReporteTraslado> findByEspecimen(Integer idEspecimen) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE r.id_especimen = ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, idEspecimen);
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por responsable
+     */
+    public List<ReporteTraslado> findByResponsable(Integer idResponsable) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE r.id_responsable = ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, idResponsable);
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * BUSCAR reportes de traslado por rango de fechas
+     */
+    public List<ReporteTraslado> findByDateRange(Date fechaInicio, Date fechaFin) throws SQLException {
+        String query = COMPLETE_QUERY + " WHERE r.fecha_reporte BETWEEN ? AND ? ORDER BY r.fecha_reporte DESC";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setDate(1, new java.sql.Date(fechaInicio.getTime()));
+            stmt.setDate(2, new java.sql.Date(fechaFin.getTime()));
+            return executeQueryWithJoins(stmt);
+        }
+    }
+
+    /**
+     * ACTUALIZAR reporte de traslado (transacción completa)
+     */
+    public boolean update(ReporteTraslado reporteTraslado) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DatabaseConfig.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. Actualizar tabla reporte
+            String updateReporteQuery = """
+                    UPDATE reporte 
+                    SET id_tipo_reporte = ?, id_especimen = ?, id_responsable = ?,
+                        asunto = ?, contenido = ?, fecha_reporte = ?, activo = ?
+                    WHERE id_reporte = ?
+                    """;
+
+            try (PreparedStatement stmt = conn.prepareStatement(updateReporteQuery)) {
+                stmt.setInt(1, reporteTraslado.getId_tipo_reporte());
+                stmt.setInt(2, reporteTraslado.getId_especimen());
+                stmt.setInt(3, reporteTraslado.getId_responsable());
+                stmt.setString(4, reporteTraslado.getAsunto());
+                stmt.setString(5, reporteTraslado.getContenido());
+                stmt.setDate(6, new java.sql.Date(reporteTraslado.getFecha_reporte().getTime()));
+                stmt.setBoolean(7, reporteTraslado.isActivo());
+                stmt.setInt(8, reporteTraslado.getId_reporte());
+
+                stmt.executeUpdate();
+            }
+
+            // 2. Actualizar tabla reporte_traslado
+            String updateTrasladoQuery = """
+                    UPDATE reporte_traslado 
+                    SET area_origen = ?, area_destino = ?, ubicacion_origen = ?,
+                        ubicacion_destino = ?, motivo = ?
+                    WHERE id_reporte = ?
+                    """;
+
+            try (PreparedStatement stmt = conn.prepareStatement(updateTrasladoQuery)) {
+                stmt.setString(1, reporteTraslado.getArea_origen());
+                stmt.setString(2, reporteTraslado.getArea_destino());
+                stmt.setString(3, reporteTraslado.getUbicacion_origen());
+                stmt.setString(4, reporteTraslado.getUbicacion_destino());
+                stmt.setString(5, reporteTraslado.getMotivo());
+                stmt.setInt(6, reporteTraslado.getId_reporte());
+
+                stmt.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    e.addSuppressed(rollbackEx);
+                }
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    // Log error
+                }
+            }
+        }
+    }
+
+    /**
+     * ELIMINAR reporte de traslado por ID (transacción completa)
+     */
+    public boolean deleteById(Integer id) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DatabaseConfig.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. Eliminar de tabla reporte_traslado
+            String deleteTrasladoQuery = "DELETE FROM reporte_traslado WHERE id_reporte = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(deleteTrasladoQuery)) {
+                stmt.setInt(1, id);
+                stmt.executeUpdate();
+            }
+
+            // 2. Eliminar de tabla reporte
+            String deleteReporteQuery = "DELETE FROM reporte WHERE id_reporte = ?";
+            boolean deleted;
+            try (PreparedStatement stmt = conn.prepareStatement(deleteReporteQuery)) {
+                stmt.setInt(1, id);
+                deleted = stmt.executeUpdate() > 0;
+            }
+
+            conn.commit();
+            return deleted;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    e.addSuppressed(rollbackEx);
+                }
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    // Log error
+                }
+            }
+        }
+    }
+
+    /**
      * VERIFICAR si existe reporte de traslado por ID
      */
     public boolean existsById(Integer id) throws SQLException {
@@ -400,261 +657,4 @@ public class ReporteTrasladoRepository {
         public Integer getTotalTraslados() { return totalTraslados; }
         public void setTotalTraslados(Integer totalTraslados) { this.totalTraslados = totalTraslados; }
     }
-}conn != null) {
-        try {
-        conn.rollback(); // Revertir cambios en caso de error
-                } catch (SQLException rollbackEx) {
-        e.addSuppressed(rollbackEx);
-                }
-                        }
-                        throw e;
-        } finally {
-                if (conn != null) {
-        try {
-        conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-        // Log error
-        }
-        }
-        }
-        }
-
-/**
- * BUSCAR todos los reportes de traslado
- */
-public List<ReporteTraslado> findAll() throws SQLException {
-    String query = COMPLETE_QUERY + " ORDER BY r.fecha_reporte DESC";
-    return executeQueryWithJoins(query);
 }
-
-/**
- * BUSCAR reporte de traslado por ID
- */
-public Optional<ReporteTraslado> findById(Integer id) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE rt.id_reporte = ?";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setInt(1, id);
-        List<ReporteTraslado> results = executeQueryWithJoins(stmt);
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por área origen
- */
-public List<ReporteTraslado> findByAreaOrigen(String areaOrigen) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE rt.area_origen = ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setString(1, areaOrigen);
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por área destino
- */
-public List<ReporteTraslado> findByAreaDestino(String areaDestino) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE rt.area_destino = ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setString(1, areaDestino);
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por ubicación origen
- */
-public List<ReporteTraslado> findByUbicacionOrigen(String ubicacionOrigen) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE rt.ubicacion_origen = ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setString(1, ubicacionOrigen);
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por ubicación destino
- */
-public List<ReporteTraslado> findByUbicacionDestino(String ubicacionDestino) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE rt.ubicacion_destino = ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setString(1, ubicacionDestino);
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por motivo (búsqueda parcial)
- */
-public List<ReporteTraslado> findByMotivoContaining(String motivo) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE rt.motivo LIKE ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setString(1, "%" + motivo + "%");
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por especimen
- */
-public List<ReporteTraslado> findByEspecimen(Integer idEspecimen) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE r.id_especimen = ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setInt(1, idEspecimen);
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por responsable
- */
-public List<ReporteTraslado> findByResponsable(Integer idResponsable) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE r.id_responsable = ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setInt(1, idResponsable);
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * BUSCAR reportes de traslado por rango de fechas
- */
-public List<ReporteTraslado> findByDateRange(Date fechaInicio, Date fechaFin) throws SQLException {
-    String query = COMPLETE_QUERY + " WHERE r.fecha_reporte BETWEEN ? AND ? ORDER BY r.fecha_reporte DESC";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-
-        stmt.setDate(1, new java.sql.Date(fechaInicio.getTime()));
-        stmt.setDate(2, new java.sql.Date(fechaFin.getTime()));
-        return executeQueryWithJoins(stmt);
-    }
-}
-
-/**
- * ACTUALIZAR reporte de traslado (transacción completa)
- */
-public boolean update(ReporteTraslado reporteTraslado) throws SQLException {
-    Connection conn = null;
-    try {
-        conn = DatabaseConfig.getConnection();
-        conn.setAutoCommit(false);
-
-        // 1. Actualizar tabla reporte
-        String updateReporteQuery = """
-                UPDATE reporte 
-                SET id_tipo_reporte = ?, id_especimen = ?, id_responsable = ?,
-                    asunto = ?, contenido = ?, fecha_reporte = ?, activo = ?
-                WHERE id_reporte = ?
-                """;
-
-        try (PreparedStatement stmt = conn.prepareStatement(updateReporteQuery)) {
-            stmt.setInt(1, reporteTraslado.getId_tipo_reporte());
-            stmt.setInt(2, reporteTraslado.getId_especimen());
-            stmt.setInt(3, reporteTraslado.getId_responsable());
-            stmt.setString(4, reporteTraslado.getAsunto());
-            stmt.setString(5, reporteTraslado.getContenido());
-            stmt.setDate(6, new java.sql.Date(reporteTraslado.getFecha_reporte().getTime()));
-            stmt.setBoolean(7, reporteTraslado.isActivo());
-            stmt.setInt(8, reporteTraslado.getId_reporte());
-
-            stmt.executeUpdate();
-        }
-
-        // 2. Actualizar tabla reporte_traslado
-        String updateTrasladoQuery = """
-                UPDATE reporte_traslado 
-                SET area_origen = ?, area_destino = ?, ubicacion_origen = ?,
-                    ubicacion_destino = ?, motivo = ?
-                WHERE id_reporte = ?
-                """;
-
-        try (PreparedStatement stmt = conn.prepareStatement(updateTrasladoQuery)) {
-            stmt.setString(1, reporteTraslado.getArea_origen());
-            stmt.setString(2, reporteTraslado.getArea_destino());
-            stmt.setString(3, reporteTraslado.getUbicacion_origen());
-            stmt.setString(4, reporteTraslado.getUbicacion_destino());
-            stmt.setString(5, reporteTraslado.getMotivo());
-            stmt.setInt(6, reporteTraslado.getId_reporte());
-
-            stmt.executeUpdate();
-        }
-
-        conn.commit();
-        return true;
-
-    } catch (SQLException e) {
-        if (conn != null) {
-            try {
-                conn.rollback();
-            } catch (SQLException rollbackEx) {
-                e.addSuppressed(rollbackEx);
-            }
-        }
-        throw e;
-    } finally {
-        if (conn != null) {
-            try {
-                conn.setAutoCommit(true);
-                conn.close();
-            } catch (SQLException e) {
-                // Log error
-            }
-        }
-    }
-}
-
-/**
- * ELIMINAR reporte de traslado por ID (transacción completa)
- */
-public boolean deleteById(Integer id) throws SQLException {
-    Connection conn = null;
-    try {
-        conn = DatabaseConfig.getConnection();
-        conn.setAutoCommit(false);
-
-        // 1. Eliminar de tabla reporte_traslado
-        String deleteTrasladoQuery = "DELETE FROM reporte_traslado WHERE id_reporte = ?";
-        try (PreparedStatement stmt = conn.prepareStatement(deleteTrasladoQuery)) {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        }
-
-        // 2. Eliminar de tabla reporte
-        String deleteReporteQuery = "DELETE FROM reporte WHERE id_reporte = ?";
-        boolean deleted;
-        try (PreparedStatement stmt = conn.prepareStatement(deleteReporteQuery)) {
-            stmt.setInt(1, id);
-            deleted = stmt.executeUpdate() > 0;
-        }
-
-        conn.commit();
-        return deleted;
-
-    } catch (SQLException e) {
-        if (

@@ -11,8 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * HUGIN MUNIN API - CLASE PRINCIPAL
+ * HUGIN MUNIN API - CLASE PRINCIPAL ACTUALIZADA
  * Sistema de gestión integral para el manejo de especies, especímenes y registros
+ * ACTUALIZADO: Incluye módulos completos de reportes (TipoReporte, Reporte, ReporteTraslado)
  */
 public class Main {
 
@@ -47,7 +48,7 @@ public class Main {
             // Configurar rutas principales
             setupMainRoutes(app);
 
-            // Configurar rutas de módulos
+            // Configurar rutas de módulos ACTUALIZADAS
             setupModuleRoutes(app);
 
             // Iniciar servidor
@@ -59,6 +60,9 @@ public class Main {
             System.out.println("📊 Test DB: http://localhost:7000/hm/test-db");
             System.out.println("📚 Documentación: http://localhost:7000/hm/docs");
             System.out.println("🚀 Registro Unificado: http://localhost:7000/hm/registro-unificado/ejemplo");
+            System.out.println("📋 Tipos de Reporte: http://localhost:7000/hm/tipos-reporte");
+            System.out.println("📄 Reportes: http://localhost:7000/hm/reportes");
+            System.out.println("🔄 Reportes Traslado: http://localhost:7000/hm/reportes-traslado");
             System.out.println("===============================================\n");
 
         } catch (Exception e) {
@@ -87,7 +91,7 @@ public class Main {
     }
 
     /**
-     * Configurar rutas principales de la API
+     * Configurar rutas principales de la API ACTUALIZADAS
      */
     private static void setupMainRoutes(Javalin app) {
 
@@ -98,28 +102,25 @@ public class Main {
             health.put("version", API_VERSION);
             health.put("status", "OK");
             health.put("timestamp", System.currentTimeMillis());
-            health.put("message", "Hugin Munin API funcionando correctamente");
+            health.put("message", "Hugin Munin API funcionando correctamente con módulos de reportes");
 
             ctx.json(health);
         });
 
-        // Test de conexión a base de datos
-        app.get("/hm/test-db", ctx -> testDatabaseConnectionEndpoint(ctx));
-
-        // Documentación de API actualizada
+        // Documentación de API ACTUALIZADA con nuevos módulos
         app.get("/hm/docs", ctx -> {
             Map<String, Object> docs = new HashMap<>();
             docs.put("api", API_NAME);
             docs.put("version", API_VERSION);
-            docs.put("description", "Sistema de gestión integral Hugin Munin");
+            docs.put("description", "Sistema de gestión integral Hugin Munin con módulos completos de reportes");
 
             Map<String, Object> endpoints = new HashMap<>();
 
-            // Documentar registro unificado
+            // Documentar registro unificado ACTUALIZADO
             Map<String, String> registroUnificado = new HashMap<>();
-            registroUnificado.put("POST /hm/registro-unificado", "Crear especie, especimen y registro de alta en una operación");
+            registroUnificado.put("POST /hm/registro-unificado", "Crear especie, especimen, registro de alta y opcionalmente reporte de traslado");
             registroUnificado.put("POST /hm/registro-unificado/validar", "Validar datos sin crear registros");
-            registroUnificado.put("GET /hm/registro-unificado/ejemplo", "Obtener ejemplo de estructura JSON");
+            registroUnificado.put("GET /hm/registro-unificado/ejemplo", "Obtener ejemplo de estructura JSON con reportes");
             registroUnificado.put("GET /hm/registro-unificado/formulario-data", "Obtener datos para formulario");
             endpoints.put("registro_unificado", registroUnificado);
 
@@ -187,6 +188,56 @@ public class Main {
             causas.put("DELETE /hm/causas-baja/{id}", "Eliminar causa");
             endpoints.put("causas_baja", causas);
 
+            // NUEVO: Documentar tipos de reporte
+            Map<String, String> tiposReporte = new HashMap<>();
+            tiposReporte.put("GET /hm/tipos-reporte", "Obtener todos los tipos de reporte");
+            tiposReporte.put("GET /hm/tipos-reporte/activos", "Obtener tipos activos");
+            tiposReporte.put("GET /hm/tipos-reporte/{id}", "Obtener tipo por ID");
+            tiposReporte.put("POST /hm/tipos-reporte", "Crear nuevo tipo de reporte");
+            tiposReporte.put("PUT /hm/tipos-reporte/{id}", "Actualizar tipo");
+            tiposReporte.put("DELETE /hm/tipos-reporte/{id}", "Eliminar tipo");
+            tiposReporte.put("PATCH /hm/tipos-reporte/{id}/activar", "Activar tipo");
+            tiposReporte.put("PATCH /hm/tipos-reporte/{id}/desactivar", "Desactivar tipo");
+            tiposReporte.put("GET /hm/tipos-reporte/estadisticas", "Obtener estadísticas");
+            endpoints.put("tipos_reporte", tiposReporte);
+
+            // NUEVO: Documentar reportes (clase padre)
+            Map<String, String> reportes = new HashMap<>();
+            reportes.put("GET /hm/reportes", "Obtener todos los reportes");
+            reportes.put("GET /hm/reportes/activos", "Obtener reportes activos");
+            reportes.put("GET /hm/reportes/{id}", "Obtener reporte por ID");
+            reportes.put("POST /hm/reportes", "Crear nuevo reporte");
+            reportes.put("PUT /hm/reportes/{id}", "Actualizar reporte");
+            reportes.put("DELETE /hm/reportes/{id}", "Eliminar reporte");
+            reportes.put("GET /hm/reportes/tipo/{id}", "Buscar por tipo de reporte");
+            reportes.put("GET /hm/reportes/especimen/{id}", "Buscar por especimen");
+            reportes.put("GET /hm/reportes/responsable/{id}", "Buscar por responsable");
+            reportes.put("GET /hm/reportes/search/asunto?q=", "Buscar por asunto");
+            reportes.put("GET /hm/reportes/search/contenido?q=", "Buscar por contenido");
+            reportes.put("GET /hm/reportes/fechas?inicio=YYYY-MM-DD&fin=YYYY-MM-DD", "Buscar por rango de fechas");
+            reportes.put("GET /hm/reportes/estadisticas", "Obtener estadísticas");
+            endpoints.put("reportes", reportes);
+
+            // NUEVO: Documentar reportes de traslado (clase hija)
+            Map<String, String> reportesTraslado = new HashMap<>();
+            reportesTraslado.put("GET /hm/reportes-traslado", "Obtener todos los reportes de traslado");
+            reportesTraslado.put("GET /hm/reportes-traslado/{id}", "Obtener reporte de traslado por ID");
+            reportesTraslado.put("POST /hm/reportes-traslado", "Crear nuevo reporte de traslado");
+            reportesTraslado.put("PUT /hm/reportes-traslado/{id}", "Actualizar reporte de traslado");
+            reportesTraslado.put("DELETE /hm/reportes-traslado/{id}", "Eliminar reporte de traslado");
+            reportesTraslado.put("GET /hm/reportes-traslado/area-origen/{area}", "Buscar por área origen");
+            reportesTraslado.put("GET /hm/reportes-traslado/area-destino/{area}", "Buscar por área destino");
+            reportesTraslado.put("GET /hm/reportes-traslado/ubicacion-origen/{ubicacion}", "Buscar por ubicación origen");
+            reportesTraslado.put("GET /hm/reportes-traslado/ubicacion-destino/{ubicacion}", "Buscar por ubicación destino");
+            reportesTraslado.put("GET /hm/reportes-traslado/search/motivo?q=", "Buscar por motivo");
+            reportesTraslado.put("GET /hm/reportes-traslado/especimen/{id}", "Buscar por especimen");
+            reportesTraslado.put("GET /hm/reportes-traslado/responsable/{id}", "Buscar por responsable");
+            reportesTraslado.put("GET /hm/reportes-traslado/fechas?inicio=YYYY-MM-DD&fin=YYYY-MM-DD", "Buscar por fechas");
+            reportesTraslado.put("GET /hm/reportes-traslado/estadisticas", "Estadísticas de traslados");
+            reportesTraslado.put("GET /hm/reportes-traslado/estadisticas/areas-origen?limit=", "Áreas origen populares");
+            reportesTraslado.put("GET /hm/reportes-traslado/estadisticas/areas-destino?limit=", "Áreas destino populares");
+            endpoints.put("reportes_traslado", reportesTraslado);
+
             // Documentar registros de alta
             Map<String, String> registrosAlta = new HashMap<>();
             registrosAlta.put("GET /hm/registro_alta", "Obtener todos los registros de alta");
@@ -210,10 +261,12 @@ public class Main {
             docs.put("port", 7000);
             docs.put("features", Map.of(
                     "crud_completo", "Operaciones CRUD para todas las entidades",
-                    "registro_unificado", "Creación coordinada de especie + especimen + registro",
+                    "registro_unificado", "Creación coordinada de especie + especimen + registro + reporte traslado",
+                    "sistema_reportes", "Sistema completo de reportes con herencia (TipoReporte -> Reporte -> ReporteTraslado)",
                     "validaciones", "Validaciones de negocio y datos",
                     "estadisticas", "Endpoints de estadísticas y reportes",
-                    "busquedas", "Búsquedas avanzadas por múltiples criterios"
+                    "busquedas_avanzadas", "Búsquedas por múltiples criterios y filtros específicos",
+                    "gestion_traslados", "Seguimiento completo de traslados de especímenes"
             ));
 
             ctx.json(docs);
@@ -235,7 +288,8 @@ public class Main {
     }
 
     /**
-     * Configurar rutas de módulos - actualizado con registro unificado
+     * Configurar rutas de módulos COMPLETAMENTE ACTUALIZADO
+     * Incluye todos los nuevos módulos de reportes
      */
     private static void setupModuleRoutes(Javalin app) {
         try {
@@ -257,7 +311,16 @@ public class Main {
             // Rutas de Especímenes
             AppModule.initSpecimens().defineRoutes(app);
 
-            // Rutas de Registro Unificado
+            // NUEVO: Rutas de Tipos de Reporte
+            AppModule.initTipoReporte().defineRoutes(app);
+
+            // NUEVO: Rutas de Reportes (clase padre)
+            AppModule.initReporte().defineRoutes(app);
+
+            // NUEVO: Rutas de Reportes de Traslado (clase hija)
+            AppModule.initReporteTraslado().defineRoutes(app);
+
+            // Rutas de Registro Unificado (ACTUALIZADO con reportes)
             AppModule.initRegistroUnificado().defineRoutes(app);
 
             // Rutas de Registros de Alta
@@ -266,14 +329,17 @@ public class Main {
             // Rutas de Registros de Baja
             AppModule.initRegistroBaja().defineRoutes(app);
 
-            System.out.println("✅ Rutas configuradas:");
+            System.out.println("✅ Rutas configuradas exitosamente:");
             System.out.println("   - Roles: /hm/roles/*");
             System.out.println("   - Usuarios: /hm/usuarios/*");
             System.out.println("   - Origen Alta: /hm/origenes-alta/*");
             System.out.println("   - Causa Baja: /hm/causas-baja/*");
             System.out.println("   - Especies: /hm/especies/*");
             System.out.println("   - Especímenes: /hm/especimenes/*");
-            System.out.println("   - Registro Unificado: /hm/registro-unificado/*");
+            System.out.println("   - Tipos Reporte: /hm/tipos-reporte/* (NUEVO)");
+            System.out.println("   - Reportes: /hm/reportes/* (NUEVO)");
+            System.out.println("   - Reportes Traslado: /hm/reportes-traslado/* (NUEVO)");
+            System.out.println("   - Registro Unificado: /hm/registro-unificado/* (ACTUALIZADO)");
             System.out.println("   - Registros Alta: /hm/registro_alta/*");
             System.out.println("   - Registros Baja: /hm/registro_baja/*");
 
@@ -281,31 +347,6 @@ public class Main {
             System.err.println("❌ Error al configurar rutas de módulos:");
             e.printStackTrace();
             throw new RuntimeException("Error en configuración de rutas", e);
-        }
-    }
-
-    /**
-     * Endpoint para test de conexión a base de datos
-     */
-    private static void testDatabaseConnectionEndpoint(Context ctx) {
-        try (Connection conn = DatabaseConfig.getConnection()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("database_status", "CONECTADO");
-            result.put("database_name", "HUGIN_MUNIN");
-            result.put("connection_valid", conn.isValid(5));
-            result.put("timestamp", System.currentTimeMillis());
-            result.put("message", "Conexión a base de datos exitosa");
-            result.put("success", true);
-
-            ctx.json(result);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("database_status", "ERROR");
-            error.put("error", e.getMessage());
-            error.put("success", false);
-            error.put("timestamp", System.currentTimeMillis());
-
-            ctx.status(500).json(error);
         }
     }
 }
