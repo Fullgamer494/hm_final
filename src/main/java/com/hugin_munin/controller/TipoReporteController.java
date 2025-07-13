@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controlador para gestionar tipos de reporte
+ * Controlador para gestionar tipos de reporte - CORREGIDO FINAL
+ * SOLO maneja los campos que existen en la base de datos
  */
 public class TipoReporteController {
 
@@ -106,10 +107,15 @@ public class TipoReporteController {
 
     /**
      * POST /hm/tipos-reporte - Crear nuevo tipo
+     * SOLO acepta los campos que existen en la base de datos
      */
     public void createTipo(Context ctx) {
         try {
             TipoReporte nuevoTipo = ctx.bodyAsClass(TipoReporte.class);
+
+            // Establecer como activo por defecto
+            nuevoTipo.setActivo(true);
+
             TipoReporte tipoCreado = tipoReporteService.createTipo(nuevoTipo);
 
             ctx.status(HttpStatus.CREATED)

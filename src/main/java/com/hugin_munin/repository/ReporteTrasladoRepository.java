@@ -29,13 +29,12 @@ public class ReporteTrasladoRepository {
                
                -- Datos del Reporte padre
                r.id_tipo_reporte, r.id_especimen, r.id_responsable,
-               r.asunto, r.contenido, r.fecha_reporte, r.activo,
+               r.asunto, r.contenido, r.fecha_reporte,
                
                -- Datos de TipoReporte
                tr.id_tipo_reporte as tr_id_tipo_reporte,
                tr.nombre_tipo_reporte,
                tr.descripcion as tr_descripcion,
-               tr.activo as tr_activo,
                
                -- Datos de Especimen
                esp.id_especimen as esp_id_especimen,
@@ -81,8 +80,8 @@ public class ReporteTrasladoRepository {
             // 1. Insertar en tabla reporte
             String insertReporteQuery = """
                 INSERT INTO reporte (id_tipo_reporte, id_especimen, id_responsable, 
-                                   asunto, contenido, fecha_reporte, activo) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                   asunto, contenido, fecha_reporte) 
+                VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
             int reporteId;
@@ -93,7 +92,6 @@ public class ReporteTrasladoRepository {
                 stmt.setString(4, reporteTraslado.getAsunto());
                 stmt.setString(5, reporteTraslado.getContenido());
                 stmt.setDate(6, new java.sql.Date(reporteTraslado.getFecha_reporte().getTime()));
-                stmt.setBoolean(7, reporteTraslado.isActivo());
 
                 int affectedRows = stmt.executeUpdate();
                 if (affectedRows == 0) {
@@ -301,7 +299,7 @@ public class ReporteTrasladoRepository {
             String updateReporteQuery = """
                     UPDATE reporte 
                     SET id_tipo_reporte = ?, id_especimen = ?, id_responsable = ?,
-                        asunto = ?, contenido = ?, fecha_reporte = ?, activo = ?
+                        asunto = ?, contenido = ?, fecha_reporte = ?
                     WHERE id_reporte = ?
                     """;
 
@@ -604,7 +602,6 @@ public class ReporteTrasladoRepository {
                 tipoReporte.setId_tipo_reporte(tipoId);
                 tipoReporte.setNombre_tipo_reporte(rs.getString("nombre_tipo_reporte"));
                 tipoReporte.setDescripcion(rs.getString("tr_descripcion"));
-                tipoReporte.setActivo(rs.getBoolean("tr_activo"));
             }
         } catch (SQLException e) {
             // Si falla el tipo reporte, continuar sin él
@@ -621,7 +618,6 @@ public class ReporteTrasladoRepository {
         reporteTraslado.setAsunto(rs.getString("asunto"));
         reporteTraslado.setContenido(rs.getString("contenido"));
         reporteTraslado.setFecha_reporte(rs.getDate("fecha_reporte"));
-        reporteTraslado.setActivo(rs.getBoolean("activo"));
 
         // Datos específicos de traslado
         reporteTraslado.setArea_origen(rs.getString("area_origen"));
