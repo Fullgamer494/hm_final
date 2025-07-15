@@ -578,18 +578,44 @@ public class EspecimenService {
     }
 
     /**
-     * MÉTODO AÑADIDO: Actualizar registro de alta
+     * MÉTODO CORREGIDO: Actualizar registro de alta CON fecha
      */
     private void updateRegistroAltaData(Integer idEspecimen, Map<String, Object> registroData) throws SQLException {
         List<RegistroAlta> registros = registroAltaRepository.findByEspecimen(idEspecimen);
         if (!registros.isEmpty()) {
             RegistroAlta registro = registros.get(0); // Tomar el primer registro
+
+            // Actualizar campos básicos
             registro.setId_origen_alta((Integer) registroData.get("id_origen_alta"));
             registro.setId_responsable((Integer) registroData.get("id_responsable"));
             registro.setProcedencia((String) registroData.get("procedencia"));
             registro.setObservacion((String) registroData.get("observacion"));
 
+            // ✅ AGREGAR MANEJO DE FECHA - ESTA ERA LA LÍNEA FALTANTE
+            if (registroData.containsKey("fecha_ingreso")) {
+                Object fechaObj = registroData.get("fecha_ingreso");
+
+                if (fechaObj instanceof Date) {
+                    registro.setFecha_ingreso((Date) fechaObj);
+                    System.out.println("✅ Fecha actualizada desde Date: " + fechaObj);
+                } else if (fechaObj instanceof String) {
+                    String fechaStr = (String) fechaObj;
+                    if (!fechaStr.trim().isEmpty()) {
+                        try {
+                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                            Date fecha = sdf.parse(fechaStr);
+                            registro.setFecha_ingreso(fecha);
+                            System.out.println("✅ Fecha actualizada desde String: " + fechaStr + " -> " + fecha);
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al convertir fecha en actualización: " + fechaStr);
+                            // No cambiar la fecha si hay error de conversión
+                        }
+                    }
+                }
+            }
+
             registroAltaRepository.updateRegister(registro);
+            System.out.println("✅ Registro de alta actualizado con fecha: " + registro.getFecha_ingreso());
         }
     }
 
