@@ -34,8 +34,7 @@ public class ReporteTrasladoRepository {
                -- Datos de TipoReporte
                tr.id_tipo_reporte as tr_id_tipo_reporte,
                tr.nombre_tipo_reporte,
-               tr.descripcion as tr_descripcion,
-               
+                              
                -- Datos de Especimen
                esp.id_especimen as esp_id_especimen,
                esp.num_inventario,
