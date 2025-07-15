@@ -41,7 +41,6 @@ public class Reporte {
     private String contenido;
 
     @JsonProperty("fecha_reporte")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "UTC")
     private Date fecha_reporte;
 
     // Constructores

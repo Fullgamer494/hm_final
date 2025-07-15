@@ -599,7 +599,6 @@ public class ReporteTrasladoRepository {
                 tipoReporte = new TipoReporte();
                 tipoReporte.setId_tipo_reporte(tipoId);
                 tipoReporte.setNombre_tipo_reporte(rs.getString("nombre_tipo_reporte"));
-                tipoReporte.setDescripcion(rs.getString("tr_descripcion"));
             }
         } catch (SQLException e) {
             // Si falla el tipo reporte, continuar sin él

@@ -67,10 +67,6 @@ public class TipoReporteService {
         // Normalizar nombre
         tipo.setNombre_tipo_reporte(capitalizeFirstLetter(tipo.getNombre_tipo_reporte().trim()));
 
-        if (tipo.getDescripcion() != null) {
-            tipo.setDescripcion(tipo.getDescripcion().trim());
-        }
-
         // Guardar tipo
         return tipoReporteRepository.save(tipo);
     }
@@ -100,11 +96,6 @@ public class TipoReporteService {
 
         // Normalizar datos
         tipo.setNombre_tipo_reporte(capitalizeFirstLetter(tipo.getNombre_tipo_reporte().trim()));
-
-        if (tipo.getDescripcion() != null) {
-            tipo.setDescripcion(tipo.getDescripcion().trim());
-        }
-
         // Actualizar tipo
         boolean updated = tipoReporteRepository.update(tipo);
         if (!updated) {
@@ -170,10 +161,6 @@ public class TipoReporteService {
         // Validar longitudes
         if (tipo.getNombre_tipo_reporte().length() < 2 || tipo.getNombre_tipo_reporte().length() > 100) {
             throw new IllegalArgumentException("El nombre del tipo debe tener entre 2 y 100 caracteres");
-        }
-
-        if (tipo.getDescripcion() != null && tipo.getDescripcion().length() > 200) {
-            throw new IllegalArgumentException("La descripción no puede exceder 200 caracteres");
         }
 
         // Validar caracteres permitidos

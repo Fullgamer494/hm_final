@@ -16,22 +16,17 @@ public class TipoReporte {
     @JsonProperty("nombre_tipo_reporte")
     private String nombre_tipo_reporte;
 
-    @JsonProperty("descripcion")
-    private String descripcion;
-
     // Constructores
     public TipoReporte() {
     }
 
     public TipoReporte(String nombre_tipo_reporte, String descripcion) {
         this.nombre_tipo_reporte = nombre_tipo_reporte;
-        this.descripcion = descripcion;
     }
 
     public TipoReporte(Integer id_tipo_reporte, String nombre_tipo_reporte, String descripcion) {
         this.id_tipo_reporte = id_tipo_reporte;
         this.nombre_tipo_reporte = nombre_tipo_reporte;
-        this.descripcion = descripcion;
     }
 
     // Getters
@@ -43,10 +38,6 @@ public class TipoReporte {
         return nombre_tipo_reporte;
     }
 
-    public String getDescripcion() {
-        return descripcion;
-    }
-
     // Setters
     public void setId_tipo_reporte(Integer id_tipo_reporte) {
         this.id_tipo_reporte = id_tipo_reporte;
@@ -54,10 +45,6 @@ public class TipoReporte {
 
     public void setNombre_tipo_reporte(String nombre_tipo_reporte) {
         this.nombre_tipo_reporte = nombre_tipo_reporte;
-    }
-
-    public void setDescripcion(String descripcion) {
-        this.descripcion = descripcion;
     }
 
     @Override

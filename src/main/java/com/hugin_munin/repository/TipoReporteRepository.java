@@ -20,7 +20,7 @@ public class TipoReporteRepository {
      */
     public List<TipoReporte> findAll() throws SQLException {
         List<TipoReporte> tipos = new ArrayList<>();
-        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte, descripcion FROM tipo_reporte ORDER BY id_tipo_reporte ASC";
+        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte FROM tipo_reporte ORDER BY id_tipo_reporte ASC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query);
@@ -38,7 +38,7 @@ public class TipoReporteRepository {
      * BUSCAR tipo de reporte por ID
      */
     public Optional<TipoReporte> findById(Integer id) throws SQLException {
-        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte, descripcion FROM tipo_reporte WHERE id_tipo_reporte = ?";
+        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte FROM tipo_reporte WHERE id_tipo_reporte = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -58,7 +58,7 @@ public class TipoReporteRepository {
      * BUSCAR tipo de reporte por nombre
      */
     public Optional<TipoReporte> findByName(String nombre) throws SQLException {
-        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte, descripcion FROM tipo_reporte WHERE nombre_tipo_reporte = ?";
+        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte FROM tipo_reporte WHERE nombre_tipo_reporte = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -79,7 +79,7 @@ public class TipoReporteRepository {
      */
     public List<TipoReporte> findByNameContaining(String nombre) throws SQLException {
         List<TipoReporte> tipos = new ArrayList<>();
-        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte, descripcion FROM tipo_reporte WHERE nombre_tipo_reporte LIKE ? ORDER BY nombre_tipo_reporte ASC";
+        String query = "SELECT id_tipo_reporte, nombre_tipo_reporte FROM tipo_reporte WHERE nombre_tipo_reporte LIKE ? ORDER BY nombre_tipo_reporte ASC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -99,13 +99,12 @@ public class TipoReporteRepository {
      * GUARDAR nuevo tipo de reporte
      */
     public TipoReporte save(TipoReporte tipoReporte) throws SQLException {
-        String query = "INSERT INTO tipo_reporte (nombre_tipo_reporte, descripcion) VALUES (?, ?)";
+        String query = "INSERT INTO tipo_reporte (nombre_tipo_reporte) VALUES (?, ?)";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, tipoReporte.getNombre_tipo_reporte());
-            stmt.setString(2, tipoReporte.getDescripcion());
 
             int rowsAffected = stmt.executeUpdate();
 
@@ -129,14 +128,13 @@ public class TipoReporteRepository {
      * ACTUALIZAR tipo de reporte existente
      */
     public boolean update(TipoReporte tipoReporte) throws SQLException {
-        String query = "UPDATE tipo_reporte SET nombre_tipo_reporte = ?, descripcion = ? WHERE id_tipo_reporte = ?";
+        String query = "UPDATE tipo_reporte SET nombre_tipo_reporte = ?, WHERE id_tipo_reporte = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setString(1, tipoReporte.getNombre_tipo_reporte());
-            stmt.setString(2, tipoReporte.getDescripcion());
-            stmt.setInt(3, tipoReporte.getId_tipo_reporte());
+            stmt.setInt(2, tipoReporte.getId_tipo_reporte());
 
             return stmt.executeUpdate() > 0;
         }
@@ -231,7 +229,6 @@ public class TipoReporteRepository {
         TipoReporte tipo = new TipoReporte();
         tipo.setId_tipo_reporte(rs.getInt("id_tipo_reporte"));
         tipo.setNombre_tipo_reporte(rs.getString("nombre_tipo_reporte"));
-        tipo.setDescripcion(rs.getString("descripcion"));
         return tipo;
     }
 }

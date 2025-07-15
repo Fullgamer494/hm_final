@@ -31,7 +31,6 @@ public class ReporteRepository {
                    -- Datos de TipoReporte
                    tr.id_tipo_reporte as tr_id_tipo_reporte,
                    tr.nombre_tipo_reporte,
-                   tr.descripcion as tr_descripcion,
                      
                    -- Datos de Especimen
                    esp.id_especimen as esp_id_especimen,
@@ -378,7 +377,6 @@ public class ReporteRepository {
                 tipoReporte = new TipoReporte();
                 tipoReporte.setId_tipo_reporte(tipoId);
                 tipoReporte.setNombre_tipo_reporte(rs.getString("nombre_tipo_reporte"));
-                tipoReporte.setDescripcion(rs.getString("tr_descripcion"));
             }
         } catch (SQLException e) {
             // Si falla el tipo reporte, continuar sin él
