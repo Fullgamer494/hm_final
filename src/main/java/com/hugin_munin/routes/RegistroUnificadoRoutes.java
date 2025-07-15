@@ -6,7 +6,7 @@ import io.javalin.Javalin;
 
 /**
  * Configuración de rutas para registro unificado
- * Maneja la creación coordinada de especie, especimen y registro de alta
+ * Maneja CRUD completo de la creación coordinada de especie, especimen y registro de alta
  */
 public class RegistroUnificadoRoutes {
     private final RegistroUnificadoController controller;
@@ -19,6 +19,12 @@ public class RegistroUnificadoRoutes {
         // POST - Crear registro unificado (especie + especimen + registro alta)
         app.post("/hm/registro_unificado", controller::createUnifiedRegistration);
 
+        // GET - Obtener registro unificado completo por ID de especimen
+        app.get("/hm/registro_unificado/{id_especimen}", controller::getUnifiedRegistration);
+
+        // PUT - Actualizar registro unificado completo
+        app.put("/hm/registro_unificado/{id_especimen}", controller::updateUnifiedRegistration);
+
         // POST - Validar datos antes de crear
         app.post("/hm/registro_unificado/validar", controller::validateUnifiedRegistration);
 
@@ -27,5 +33,8 @@ public class RegistroUnificadoRoutes {
 
         // GET - Obtener ejemplo de estructura JSON
         app.get("/hm/registro_unificado/ejemplo", controller::getExampleStructure);
+
+        // GET - Listar todos los registros unificados (paginado)
+        app.get("/hm/registro_unificado", controller::listUnifiedRegistrations);
     }
 }

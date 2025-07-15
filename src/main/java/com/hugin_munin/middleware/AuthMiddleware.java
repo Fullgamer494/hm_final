@@ -14,26 +14,30 @@ import java.util.List;
 /**
  * Middleware de autenticación CORREGIDO - Sistema unificado
  * SOLO usa cookies personalizadas, NO usa sessionAttribute de Javalin
+ * CORREGIDO: Lista de rutas públicas actualizada y debugging mejorado
  */
 public class AuthMiddleware {
 
     private final AuthService authService;
 
-    // Rutas que NO requieren autenticación
+    // Rutas que NO requieren autenticación - LISTA ACTUALIZADA
     private static final List<String> PUBLIC_ROUTES = Arrays.asList(
             "/",
             "/hm/docs",
-            "/hm/auth/login",
-            "/hm/auth/verify",
+            "/hm/test-db",
+            "/hm/auth/login",     // POST - login
+            "/hm/auth/verify",    // GET - verificar sesión
+            "/hm/auth/logout",    // POST - logout
             "/routes"
     );
+    // IMPORTANTE: /hm/auth/profile NO está en PUBLIC_ROUTES porque SÍ requiere autenticación
 
     public AuthMiddleware(AuthService authService) {
         this.authService = authService;
     }
 
     /**
-     * Handler principal del middleware - VERSIÓN CORREGIDA
+     * Handler principal del middleware - VERSIÓN CON DEBUG MEJORADO
      */
     public Handler handle() {
         return ctx -> {
@@ -46,6 +50,22 @@ public class AuthMiddleware {
             if (isPublicRoute(path)) {
                 System.out.println("✅ Ruta pública permitida: " + path);
                 return;
+            }
+
+            // DEBUGGING ESPECÍFICO para /hm/auth/profile
+            if (path.equals("/hm/auth/profile")) {
+                System.out.println("🔍 DEBUG PROFILE: Verificando autenticación para profile");
+
+                // Mostrar todas las cookies
+                Map<String, String> cookies = ctx.cookieMap();
+                System.out.println("🍪 Cookies disponibles: " + cookies.keySet());
+
+                String sessionId = ctx.cookie("HM_SESSION");
+                System.out.println("🍪 HM_SESSION cookie: " + (sessionId != null ? "presente (" + sessionId.substring(0, Math.min(10, sessionId.length())) + "...)" : "AUSENTE"));
+
+                if (sessionId != null) {
+                    System.out.println("🔍 DEBUG: Intentando verificar sesión con AuthService...");
+                }
             }
 
             // Verificar autenticación para todas las demás rutas
@@ -88,7 +108,7 @@ public class AuthMiddleware {
     }
 
     /**
-     * Autenticar request usando SOLO cookie personalizada
+     * Autenticar request usando SOLO cookie personalizada - MÉTODO CON DEBUG MEJORADO
      */
     private Usuario authenticateRequest(Context ctx) {
         try {
@@ -101,6 +121,8 @@ public class AuthMiddleware {
                 return null;
             }
 
+            System.out.println("🔍 Verificando sesión con AuthService...");
+
             // Verificar sesión usando AuthService
             Usuario usuario = authService.getUserBySession(sessionId);
 
@@ -111,10 +133,12 @@ public class AuthMiddleware {
                 return null;
             }
 
+            System.out.println("✅ Sesión válida para usuario: " + usuario.getNombre_usuario());
             return usuario;
 
         } catch (Exception e) {
             System.err.println("❌ Error en autenticación: " + e.getMessage());
+            e.printStackTrace();
             clearAllAuthCookies(ctx);
             return null;
         }
@@ -149,16 +173,28 @@ public class AuthMiddleware {
     }
 
     /**
-     * Verificar si una ruta es pública
+     * Verificar si una ruta es pública - MÉTODO MEJORADO
      */
     private boolean isPublicRoute(String path) {
-        return PUBLIC_ROUTES.stream().anyMatch(publicRoute -> {
+        // Verificar rutas exactas
+        for (String publicRoute : PUBLIC_ROUTES) {
             if (publicRoute.equals(path)) {
                 return true;
             }
-            // Permitir rutas que empiecen con rutas públicas
-            return path.startsWith(publicRoute);
-        });
+        }
+
+        // Verificar prefijos específicos
+        if (path.equals("/") || path.equals("/routes")) {
+            return true;
+        }
+
+        // IMPORTANTE: Solo permitir rutas de auth específicas que están en PUBLIC_ROUTES
+        // /hm/auth/profile NO está en PUBLIC_ROUTES, por lo que requiere autenticación
+        if (path.startsWith("/hm/auth/")) {
+            return PUBLIC_ROUTES.contains(path);
+        }
+
+        return false;
     }
 
     /**

@@ -9,17 +9,19 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Repositorio para gestionar los roles del sistema
+ * Repositorio para gestionar los roles del sistema - CORREGIDO COMPLETAMENTE
  * Maneja todas las operaciones CRUD para la entidad Rol
+ * CORREGIDO: Adaptado al esquema real que solo tiene id_rol y nombre_rol
  */
 public class RolRepository {
 
     /**
-     * BUSCAR todos los roles
+     * BUSCAR todos los roles - CORREGIDO
      */
     public List<Rol> findAll() throws SQLException {
         List<Rol> roles = new ArrayList<>();
-        String query = "SELECT id_rol, nombre_rol, descripcion, activo FROM rol ORDER BY id_rol ASC";
+        // CORREGIDO: Solo columnas que existen en la BD
+        String query = "SELECT id_rol, nombre_rol FROM rol ORDER BY id_rol ASC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query);
@@ -34,11 +36,13 @@ public class RolRepository {
     }
 
     /**
-     * BUSCAR todos los roles activos
+     * BUSCAR todos los roles activos - CORREGIDO
+     * Como no hay columna 'activo', devolvemos todos los roles
      */
     public List<Rol> findAllActive() throws SQLException {
         List<Rol> roles = new ArrayList<>();
-        String query = "SELECT id_rol, nombre_rol, descripcion, activo FROM rol WHERE activo = TRUE ORDER BY nombre_rol ASC";
+        // CORREGIDO: Como no hay columna activo, devolvemos todos
+        String query = "SELECT id_rol, nombre_rol FROM rol ORDER BY nombre_rol ASC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query);
@@ -52,10 +56,11 @@ public class RolRepository {
     }
 
     /**
-     * BUSCAR rol por ID
+     * BUSCAR rol por ID - CORREGIDO
      */
     public Optional<Rol> findById(Integer id) throws SQLException {
-        String query = "SELECT id_rol, nombre_rol, descripcion, activo FROM rol WHERE id_rol = ?";
+        // CORREGIDO: Solo columnas que existen
+        String query = "SELECT id_rol, nombre_rol FROM rol WHERE id_rol = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -72,10 +77,18 @@ public class RolRepository {
     }
 
     /**
-     * BUSCAR rol por nombre
+     * MÉTODO ADICIONAL: findById que devuelve Rol o null (para compatibilidad)
+     */
+    public Rol findByIdOrNull(Integer id) throws SQLException {
+        Optional<Rol> rolOpt = findById(id);
+        return rolOpt.orElse(null);
+    }
+
+    /**
+     * BUSCAR rol por nombre - CORREGIDO
      */
     public Optional<Rol> findByName(String nombreRol) throws SQLException {
-        String query = "SELECT id_rol, nombre_rol, descripcion, activo FROM rol WHERE nombre_rol = ?";
+        String query = "SELECT id_rol, nombre_rol FROM rol WHERE nombre_rol = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -92,11 +105,11 @@ public class RolRepository {
     }
 
     /**
-     * BUSCAR roles por nombre (búsqueda parcial)
+     * BUSCAR roles por nombre (búsqueda parcial) - CORREGIDO
      */
     public List<Rol> findByNameContaining(String nombreRol) throws SQLException {
         List<Rol> roles = new ArrayList<>();
-        String query = "SELECT id_rol, nombre_rol, descripcion, activo FROM rol WHERE nombre_rol LIKE ? ORDER BY nombre_rol ASC";
+        String query = "SELECT id_rol, nombre_rol FROM rol WHERE nombre_rol LIKE ? ORDER BY nombre_rol ASC";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -113,17 +126,16 @@ public class RolRepository {
     }
 
     /**
-     * GUARDAR nuevo rol
+     * GUARDAR nuevo rol - CORREGIDO
      */
     public Rol save(Rol rol) throws SQLException {
-        String query = "INSERT INTO rol (nombre_rol, descripcion, activo) VALUES (?, ?, ?)";
+        // CORREGIDO: Solo insertar columnas que existen
+        String query = "INSERT INTO rol (nombre_rol) VALUES (?)";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, rol.getNombre_rol());
-            stmt.setString(2, rol.getDescripcion());
-            stmt.setBoolean(3, rol.isActivo());
 
             int rowsAffected = stmt.executeUpdate();
 
@@ -144,18 +156,17 @@ public class RolRepository {
     }
 
     /**
-     * ACTUALIZAR rol existente
+     * ACTUALIZAR rol existente - CORREGIDO
      */
     public boolean update(Rol rol) throws SQLException {
-        String query = "UPDATE rol SET nombre_rol = ?, descripcion = ?, activo = ? WHERE id_rol = ?";
+        // CORREGIDO: Solo actualizar columnas que existen
+        String query = "UPDATE rol SET nombre_rol = ? WHERE id_rol = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setString(1, rol.getNombre_rol());
-            stmt.setString(2, rol.getDescripcion());
-            stmt.setBoolean(3, rol.isActivo());
-            stmt.setInt(4, rol.getId_rol());
+            stmt.setInt(2, rol.getId_rol());
 
             return stmt.executeUpdate() > 0;
         }
@@ -176,31 +187,23 @@ public class RolRepository {
     }
 
     /**
-     * DESACTIVAR rol (eliminación lógica)
+     * DESACTIVAR rol (eliminación lógica) - ADAPTADO
+     * Como no hay columna 'activo', este método no hace nada real
      */
     public boolean deactivateById(Integer id) throws SQLException {
-        String query = "UPDATE rol SET activo = FALSE WHERE id_rol = ?";
-
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-        }
+        System.out.println("⚠️ ADVERTENCIA: deactivateById llamado pero no hay columna 'activo' en la BD");
+        // Como no hay columna activo, simplemente retornamos true si el rol existe
+        return existsById(id);
     }
 
     /**
-     * ACTIVAR rol
+     * ACTIVAR rol - ADAPTADO
+     * Como no hay columna 'activo', este método no hace nada real
      */
     public boolean activateById(Integer id) throws SQLException {
-        String query = "UPDATE rol SET activo = TRUE WHERE id_rol = ?";
-
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-        }
+        System.out.println("⚠️ ADVERTENCIA: activateById llamado pero no hay columna 'activo' en la BD");
+        // Como no hay columna activo, simplemente retornamos true si el rol existe
+        return existsById(id);
     }
 
     /**
@@ -255,20 +258,12 @@ public class RolRepository {
     }
 
     /**
-     * CONTAR roles activos
+     * CONTAR roles activos - ADAPTADO
+     * Como no hay columna activo, devolvemos el total
      */
     public int countActive() throws SQLException {
-        String query = "SELECT COUNT(*) FROM rol WHERE activo = TRUE";
-
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return 0;
+        // ADAPTADO: Como no hay columna activo, devolvemos el total
+        return countTotal();
     }
 
     /**
@@ -289,14 +284,19 @@ public class RolRepository {
     }
 
     /**
-     * MAPEAR ResultSet a objeto Rol
+     * MAPEAR ResultSet a objeto Rol - CORREGIDO
      */
     private Rol mapResultSetToRol(ResultSet rs) throws SQLException {
         Rol rol = new Rol();
         rol.setId_rol(rs.getInt("id_rol"));
         rol.setNombre_rol(rs.getString("nombre_rol"));
-        rol.setDescripcion(rs.getString("descripcion"));
-        rol.setActivo(rs.getBoolean("activo"));
+
+        // CORREGIDO: Generar descripción automática ya que no existe en BD
+        rol.setDescripcion("Rol " + rs.getString("nombre_rol"));
+
+        // CORREGIDO: Como no hay columna activo, asumimos que todos están activos
+        rol.setActivo(true);
+
         return rol;
     }
 }

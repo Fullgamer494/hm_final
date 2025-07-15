@@ -6,19 +6,26 @@ import com.hugin_munin.routes.*;
 import com.hugin_munin.service.*;
 
 /**
- * Contenedor de inyección de dependencias ACTUALIZADO
+ * Contenedor de inyección de dependencias CORREGIDO
  * Maneja la inicialización de todos los módulos con sus dependencias
- * INCLUYE: TipoReporte, Reporte y ReporteTraslado
+ * INCLUYE: TipoReporte, Reporte, ReporteTraslado y Permisos
+ * CORREGIDO: AuthController ahora recibe AuthService y UsuarioService
  */
 public class AppModule {
 
     /**
-     * Inicializar módulo de autenticación
+     * Inicializar módulo de autenticación - CORREGIDO
      */
     public static AuthRoutes initAuth() {
+        RolRepository rolRepository = new RolRepository();
         UsuarioRepository usuarioRepository = new UsuarioRepository();
+
+        // Crear servicios necesarios
         AuthService authService = new AuthService(usuarioRepository);
-        AuthController authController = new AuthController(authService);
+        UsuarioService usuarioService = new UsuarioService(usuarioRepository, rolRepository);
+
+        // CORREGIDO: AuthController necesita AMBOS servicios
+        AuthController authController = new AuthController(authService, usuarioService);
 
         return new AuthRoutes(authController);
     }
@@ -41,6 +48,17 @@ public class AppModule {
         RolController rolController = new RolController(rolService);
 
         return new RolRoutes(rolController);
+    }
+
+    /**
+     * Inicializar módulo de permisos (NUEVO - MÉTODO AGREGADO)
+     */
+    public static PermisoRoutes initPermisos() {
+        PermisoRepository permisoRepository = new PermisoRepository();
+        PermisoService permisoService = new PermisoService(permisoRepository);
+        PermisoController permisoController = new PermisoController(permisoService);
+
+        return new PermisoRoutes(permisoController);
     }
 
     /**
@@ -245,9 +263,15 @@ public class AppModule {
      * Información completa del módulo ACTUALIZADA
      */
     public static void printModuleInfo() {
-        System.out.println("=== HUGIN MUNIN API - DEPENDENCY INJECTION COMPLETO + REPORTES ===");
+        System.out.println("=== HUGIN MUNIN API - DEPENDENCY INJECTION COMPLETO + REPORTES + PERMISOS ===");
+        System.out.println("✅ Módulo Autenticación (CORREGIDO):");
+        System.out.println("   [UsuarioRepository, RolRepository] -> [AuthService, UsuarioService] -> AuthController");
+
         System.out.println("✅ Módulo Rol:");
         System.out.println("   RolRepository -> RolService -> RolController");
+
+        System.out.println("✅ Módulo Permiso (NUEVO):");
+        System.out.println("   PermisoRepository -> PermisoService -> PermisoController");
 
         System.out.println("✅ Módulo Usuario:");
         System.out.println("   [RolRepository, UsuarioRepository] -> UsuarioService -> UsuarioController");
@@ -299,7 +323,12 @@ public class AppModule {
         System.out.println("   - TipoReporte: Catálogo CRUD básico");
         System.out.println("   - Reporte: Clase padre con búsquedas por todos los atributos");
         System.out.println("   - ReporteTraslado: Clase hija con atributos específicos de traslado");
-        System.out.println("🔄 PRÓXIMO: Integración de ReporteTraslado al RegistroUnificado");
+        System.out.println("🔑 NUEVOS: Sistema completo de permisos");
+        System.out.println("   - Permiso: CRUD completo con categorización automática");
+        System.out.println("   - Gestión de asignación permiso-rol");
+        System.out.println("   - Estadísticas y verificaciones de permisos");
+        System.out.println("🔧 CORREGIDO: Orden de configuración de rutas y middleware");
+        System.out.println("🔧 CORREGIDO: AuthController con dependencias correctas");
         System.out.println("==========================================================");
     }
 }

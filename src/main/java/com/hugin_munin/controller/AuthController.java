@@ -1,7 +1,9 @@
 package com.hugin_munin.controller;
 
 import com.hugin_munin.model.Usuario;
+import com.hugin_munin.model.UsuarioConPermisos;
 import com.hugin_munin.service.AuthService;
+import com.hugin_munin.service.UsuarioService;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 
@@ -9,115 +11,133 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Controlador para manejo de autenticación
- * Sistema básico con cookies
+ * Controlador de autenticación - CORREGIDO PARA USAR MÉTODOS CORRECTOS
+ * Maneja login, logout, verificación de sesión y perfil de usuario
+ * CORREGIDO: Usa métodos que existen en AuthService
  */
 public class AuthController {
 
     private final AuthService authService;
+    private final UsuarioService usuarioService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, UsuarioService usuarioService) {
         this.authService = authService;
+        this.usuarioService = usuarioService;
     }
 
     /**
-     * POST /hm/auth/login - Iniciar sesión
+     * POST /hm/auth/login - Iniciar sesión - CORREGIDO
      */
     public void login(Context ctx) {
         try {
-            // Obtener credenciales del request
+            System.out.println("🔑 AuthController: Iniciando proceso de login");
+
+            // Obtener datos del cuerpo de la petición
             Map<String, String> credentials = ctx.bodyAsClass(Map.class);
             String nombreUsuario = credentials.get("nombre_usuario");
             String contrasena = credentials.get("contrasena");
 
-            // Validar que se proporcionaron las credenciales
+            System.out.println("📝 Datos recibidos - Usuario: " + nombreUsuario);
+
+            // Validar que se proporcionen las credenciales
             if (nombreUsuario == null || nombreUsuario.trim().isEmpty()) {
                 ctx.status(HttpStatus.BAD_REQUEST)
-                        .json(createErrorResponse("Nombre de usuario requerido", "Debe proporcionar un nombre de usuario"));
+                        .json(createErrorResponse("Datos incompletos", "El nombre de usuario es requerido"));
                 return;
             }
 
             if (contrasena == null || contrasena.trim().isEmpty()) {
                 ctx.status(HttpStatus.BAD_REQUEST)
-                        .json(createErrorResponse("Contraseña requerida", "Debe proporcionar una contraseña"));
+                        .json(createErrorResponse("Datos incompletos", "La contraseña es requerida"));
                 return;
             }
 
-            // Autenticar usuario
-            Usuario usuario = authService.authenticate(nombreUsuario.trim(), contrasena);
+            // CORREGIDO: Usar authenticate en lugar de login
+            Usuario usuario = authService.authenticate(nombreUsuario, contrasena);
 
             if (usuario == null) {
+                System.out.println("❌ Login fallido para usuario: " + nombreUsuario);
                 ctx.status(HttpStatus.UNAUTHORIZED)
                         .json(createErrorResponse("Credenciales inválidas", "Usuario o contraseña incorrectos"));
                 return;
             }
 
-            // Verificar que el usuario esté activo
-            if (!usuario.isActivo()) {
-                ctx.status(HttpStatus.FORBIDDEN)
-                        .json(createErrorResponse("Usuario inactivo", "Su cuenta está desactivada. Contacte al administrador"));
-                return;
-            }
+            System.out.println("✅ Usuario autenticado: " + usuario.getNombre_usuario());
 
-            // Crear sesión y establecer cookie
+            // CORREGIDO: Crear sesión usando createSession
             String sessionId = authService.createSession(usuario);
 
-            // Configurar cookie de sesión (30 días de duración)
-            ctx.cookie("HM_SESSION", sessionId, 30 * 24 * 60 * 60); // 30 días en segundos
-            ctx.cookie("HM_USER_ID", usuario.getId_usuario().toString(), 30 * 24 * 60 * 60);
-            ctx.cookie("HM_USER_NAME", usuario.getNombre_usuario(), 30 * 24 * 60 * 60);
+            System.out.println("✅ Sesión creada: " + sessionId);
 
-            // Preparar respuesta exitosa (sin incluir contraseña)
-            Map<String, Object> userInfo = new HashMap<>();
-            userInfo.put("id_usuario", usuario.getId_usuario());
-            userInfo.put("nombre_usuario", usuario.getNombre_usuario());
-            userInfo.put("correo", usuario.getCorreo());
-            userInfo.put("id_rol", usuario.getId_rol());
-            userInfo.put("activo", usuario.isActivo());
+            // Configurar cookies de sesión
+            ctx.cookie("HM_SESSION", sessionId, 86400); // 24 horas
+            ctx.cookie("HM_USER_ID", String.valueOf(usuario.getId_usuario()), 86400);
+            ctx.cookie("HM_USER_NAME", usuario.getNombre_usuario(), 86400);
 
+            // Respuesta exitosa
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Inicio de sesión exitoso");
-            response.put("usuario", userInfo);
+            response.put("message", "Login exitoso");
+            response.put("user", Map.of(
+                    "id_usuario", usuario.getId_usuario(),
+                    "nombre_usuario", usuario.getNombre_usuario(),
+                    "correo", usuario.getCorreo(),
+                    "id_rol", usuario.getId_rol()
+            ));
             response.put("session_id", sessionId);
+            response.put("timestamp", System.currentTimeMillis());
 
             ctx.json(response);
 
-        } catch (IllegalArgumentException e) {
-            ctx.status(HttpStatus.UNAUTHORIZED)
-                    .json(createErrorResponse("Error de autenticación", e.getMessage()));
         } catch (Exception e) {
+            System.err.println("❌ Error en login: " + e.getMessage());
+            e.printStackTrace();
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error interno del servidor", "Error al procesar el login"));
+                    .json(createErrorResponse("Error interno", "Error al procesar el login"));
         }
     }
 
     /**
-     * POST /hm/auth/logout - Cerrar sesión
+     * POST /hm/auth/logout - Cerrar sesión - CORREGIDO
      */
     public void logout(Context ctx) {
         try {
+            System.out.println("🚪 AuthController: Iniciando logout");
+
             String sessionId = ctx.cookie("HM_SESSION");
 
-            if (sessionId != null) {
-                // Eliminar sesión del servidor
-                authService.invalidateSession(sessionId);
+            if (sessionId != null && !sessionId.trim().isEmpty()) {
+                // CORREGIDO: Usar invalidateSession en lugar de logout
+                boolean invalidated = authService.invalidateSession(sessionId);
+                if (invalidated) {
+                    System.out.println("✅ Sesión invalidada: " + sessionId.substring(0, Math.min(10, sessionId.length())) + "...");
+                } else {
+                    System.out.println("⚠️ Sesión no encontrada para invalidar: " + sessionId);
+                }
             }
 
-            // Eliminar cookies
+            // Limpiar todas las cookies
             ctx.removeCookie("HM_SESSION");
             ctx.removeCookie("HM_USER_ID");
             ctx.removeCookie("HM_USER_NAME");
 
+            // Configurar cookies con expiración inmediata
+            ctx.cookie("HM_SESSION", "", 0);
+            ctx.cookie("HM_USER_ID", "", 0);
+            ctx.cookie("HM_USER_NAME", "", 0);
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Sesión cerrada exitosamente");
+            response.put("message", "Logout exitoso");
+            response.put("timestamp", System.currentTimeMillis());
 
             ctx.json(response);
 
         } catch (Exception e) {
+            System.err.println("❌ Error en logout: " + e.getMessage());
+            e.printStackTrace();
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al cerrar sesión", e.getMessage()));
+                    .json(createErrorResponse("Error interno", "Error al procesar el logout"));
         }
     }
 
@@ -126,11 +146,18 @@ public class AuthController {
      */
     public void verifySession(Context ctx) {
         try {
+            System.out.println("🔍 AuthController: Verificando sesión");
+
             String sessionId = ctx.cookie("HM_SESSION");
 
             if (sessionId == null || sessionId.trim().isEmpty()) {
-                ctx.status(HttpStatus.UNAUTHORIZED)
-                        .json(createErrorResponse("No hay sesión activa", "No se encontró cookie de sesión"));
+                System.out.println("⚠️ No hay cookie de sesión");
+                ctx.json(Map.of(
+                        "success", false,
+                        "message", "No hay sesión activa",
+                        "authenticated", false,
+                        "timestamp", System.currentTimeMillis()
+                ));
                 return;
             }
 
@@ -138,34 +165,37 @@ public class AuthController {
             Usuario usuario = authService.getUserBySession(sessionId);
 
             if (usuario == null) {
-                // Sesión inválida, limpiar cookies
-                ctx.removeCookie("HM_SESSION");
-                ctx.removeCookie("HM_USER_ID");
-                ctx.removeCookie("HM_USER_NAME");
-
-                ctx.status(HttpStatus.UNAUTHORIZED)
-                        .json(createErrorResponse("Sesión inválida", "La sesión ha expirado"));
+                System.out.println("⚠️ Sesión inválida");
+                ctx.json(Map.of(
+                        "success", false,
+                        "message", "Sesión inválida",
+                        "authenticated", false,
+                        "timestamp", System.currentTimeMillis()
+                ));
                 return;
             }
 
-            // Preparar información del usuario
-            Map<String, Object> userInfo = new HashMap<>();
-            userInfo.put("id_usuario", usuario.getId_usuario());
-            userInfo.put("nombre_usuario", usuario.getNombre_usuario());
-            userInfo.put("correo", usuario.getCorreo());
-            userInfo.put("id_rol", usuario.getId_rol());
-            userInfo.put("activo", usuario.isActivo());
+            System.out.println("✅ Sesión válida para usuario: " + usuario.getNombre_usuario());
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Sesión válida");
-            response.put("usuario", userInfo);
-
-            ctx.json(response);
+            ctx.json(Map.of(
+                    "success", true,
+                    "message", "Sesión válida",
+                    "authenticated", true,
+                    "usuario", Map.of(
+                            "id_usuario", usuario.getId_usuario(),
+                            "nombre_usuario", usuario.getNombre_usuario(),
+                            "correo", usuario.getCorreo(),
+                            "id_rol", usuario.getId_rol(),
+                            "activo", usuario.isActivo()
+                    ),
+                    "timestamp", System.currentTimeMillis()
+            ));
 
         } catch (Exception e) {
+            System.err.println("❌ Error en verifySession: " + e.getMessage());
+            e.printStackTrace();
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al verificar sesión", e.getMessage()));
+                    .json(createErrorResponse("Error interno", "Error al verificar la sesión"));
         }
     }
 
@@ -174,108 +204,163 @@ public class AuthController {
      */
     public void getProfile(Context ctx) {
         try {
-            // Obtener usuario de la sesión (asumiendo que hay middleware que lo establece)
-            Usuario usuario = ctx.sessionAttribute("usuario");
+            System.out.println("🎯 AuthController: Iniciando getProfile");
+
+            // DEBUGGING TEMPORAL
+            System.out.println("🔍 DEBUG getProfile: Usuario en attribute: " + ctx.attribute("usuario"));
+            System.out.println("🔍 DEBUG getProfile: Cookie HM_SESSION: " + (ctx.cookie("HM_SESSION") != null ? "presente" : "ausente"));
+
+            // MÉTODO 1: Intentar obtener usuario desde middleware
+            Usuario usuario = ctx.attribute("usuario");
 
             if (usuario == null) {
-                ctx.status(HttpStatus.UNAUTHORIZED)
-                        .json(createErrorResponse("No autenticado", "Debe iniciar sesión"));
-                return;
+                System.out.println("⚠️ AuthController: Usuario no encontrado en attributes, intentando con cookie directamente");
+
+                // MÉTODO 2: Si el middleware falló, intentar directamente con la cookie
+                String sessionId = ctx.cookie("HM_SESSION");
+
+                if (sessionId == null || sessionId.trim().isEmpty()) {
+                    System.out.println("❌ AuthController: No hay cookie de sesión");
+                    ctx.status(HttpStatus.UNAUTHORIZED)
+                            .json(createErrorResponse("No autorizado", "Debe iniciar sesión para acceder al perfil"));
+                    return;
+                }
+
+                System.out.println("🔍 AuthController: Verificando sesión directamente: " + sessionId.substring(0, Math.min(10, sessionId.length())) + "...");
+
+                // Verificar sesión directamente
+                usuario = authService.getUserBySession(sessionId);
+
+                if (usuario == null) {
+                    System.out.println("❌ AuthController: Sesión inválida");
+                    ctx.status(HttpStatus.UNAUTHORIZED)
+                            .json(createErrorResponse("Sesión inválida", "La sesión ha expirado, debe iniciar sesión nuevamente"));
+                    return;
+                }
             }
 
-            // Preparar información completa del perfil
-            Map<String, Object> profile = new HashMap<>();
-            profile.put("id_usuario", usuario.getId_usuario());
-            profile.put("nombre_usuario", usuario.getNombre_usuario());
-            profile.put("correo", usuario.getCorreo());
-            profile.put("id_rol", usuario.getId_rol());
-            profile.put("activo", usuario.isActivo());
+            System.out.println("✅ AuthController: Usuario obtenido: " + usuario.getNombre_usuario());
 
-            // Si tiene rol cargado, incluir información del rol
-            if (usuario.getRol() != null) {
-                Map<String, Object> rolInfo = new HashMap<>();
-                rolInfo.put("id_rol", usuario.getRol().getId_rol());
-                rolInfo.put("nombre_rol", usuario.getRol().getNombre_rol());
-                rolInfo.put("descripcion", usuario.getRol().getDescripcion());
-                profile.put("rol", rolInfo);
+            // Obtener información completa del usuario con permisos
+            try {
+                UsuarioConPermisos usuarioConPermisos = usuarioService.getUsuarioConPermisosByCorreo(usuario.getCorreo());
+
+                // Crear respuesta completa del perfil
+                Map<String, Object> profile = usuarioConPermisos.toResponseMap();
+                profile.put("success", true);
+                profile.put("message", "Perfil obtenido exitosamente");
+                profile.put("timestamp", System.currentTimeMillis());
+
+                // Agregar información adicional del perfil
+                profile.put("session_info", Map.of(
+                        "login_time", "Información de sesión disponible",
+                        "last_activity", System.currentTimeMillis(),
+                        "session_valid", true
+                ));
+
+                System.out.println("✅ AuthController: Perfil preparado con " + usuarioConPermisos.getPermisos().size() + " permisos");
+                ctx.json(profile);
+
+            } catch (Exception e) {
+                System.err.println("⚠️ AuthController: Error obteniendo permisos, devolviendo perfil básico: " + e.getMessage());
+
+                // Si falla obtener permisos, devolver al menos la información básica
+                Map<String, Object> basicProfile = new HashMap<>();
+                basicProfile.put("success", true);
+                basicProfile.put("message", "Perfil básico obtenido exitosamente");
+                basicProfile.put("usuario", Map.of(
+                        "id_usuario", usuario.getId_usuario(),
+                        "nombre_usuario", usuario.getNombre_usuario(),
+                        "correo", usuario.getCorreo(),
+                        "activo", usuario.isActivo(),
+                        "id_rol", usuario.getId_rol()
+                ));
+                basicProfile.put("warning", "No se pudieron cargar los permisos");
+                basicProfile.put("timestamp", System.currentTimeMillis());
+
+                ctx.json(basicProfile);
             }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("profile", profile);
-
-            ctx.json(response);
 
         } catch (Exception e) {
+            System.err.println("❌ AuthController: Error en getProfile: " + e.getMessage());
+            e.printStackTrace();
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al obtener perfil", e.getMessage()));
+                    .json(createErrorResponse("Error interno", "Error al obtener el perfil del usuario"));
         }
     }
 
     /**
-     * PUT /hm/auth/change-password - Cambiar contraseña
+     * PUT /hm/auth/change-password - Cambiar contraseña - CORREGIDO
      */
     public void changePassword(Context ctx) {
         try {
-            Usuario usuario = ctx.sessionAttribute("usuario");
+            System.out.println("🔒 AuthController: Iniciando cambio de contraseña");
 
+            // Obtener usuario autenticado
+            Usuario usuario = ctx.attribute("usuario");
             if (usuario == null) {
                 ctx.status(HttpStatus.UNAUTHORIZED)
-                        .json(createErrorResponse("No autenticado", "Debe iniciar sesión"));
+                        .json(createErrorResponse("No autorizado", "Debe estar autenticado para cambiar la contraseña"));
                 return;
             }
 
-            Map<String, String> passwordData = ctx.bodyAsClass(Map.class);
-            String currentPassword = passwordData.get("contrasena_actual");
-            String newPassword = passwordData.get("contrasena_nueva");
+            // Obtener datos del cuerpo de la petición
+            Map<String, String> passwords = ctx.bodyAsClass(Map.class);
+            String contrasenaActual = passwords.get("contrasena_actual");
+            String contrasenaNueva = passwords.get("contrasena_nueva");
 
-            if (currentPassword == null || currentPassword.trim().isEmpty()) {
+            // Validaciones
+            if (contrasenaActual == null || contrasenaActual.trim().isEmpty()) {
                 ctx.status(HttpStatus.BAD_REQUEST)
-                        .json(createErrorResponse("Contraseña actual requerida", "Debe proporcionar su contraseña actual"));
+                        .json(createErrorResponse("Datos incompletos", "La contraseña actual es requerida"));
                 return;
             }
 
-            if (newPassword == null || newPassword.trim().isEmpty()) {
+            if (contrasenaNueva == null || contrasenaNueva.trim().isEmpty()) {
                 ctx.status(HttpStatus.BAD_REQUEST)
-                        .json(createErrorResponse("Nueva contraseña requerida", "Debe proporcionar una nueva contraseña"));
+                        .json(createErrorResponse("Datos incompletos", "La nueva contraseña es requerida"));
                 return;
             }
 
-            if (newPassword.length() < 6) {
+            if (contrasenaNueva.length() < 6) {
                 ctx.status(HttpStatus.BAD_REQUEST)
-                        .json(createErrorResponse("Contraseña muy corta", "La nueva contraseña debe tener al menos 6 caracteres"));
+                        .json(createErrorResponse("Contraseña inválida", "La nueva contraseña debe tener al menos 6 caracteres"));
                 return;
             }
 
-            // Cambiar contraseña
-            boolean changed = authService.changePassword(usuario.getId_usuario(), currentPassword, newPassword);
+            // CORREGIDO: Usar changePassword con ID de usuario
+            boolean cambiada = authService.changePassword(usuario.getId_usuario(), contrasenaActual, contrasenaNueva);
 
-            if (!changed) {
+            if (!cambiada) {
                 ctx.status(HttpStatus.BAD_REQUEST)
-                        .json(createErrorResponse("Contraseña actual incorrecta", "La contraseña actual no es válida"));
+                        .json(createErrorResponse("Error", "La contraseña actual no es correcta"));
                 return;
             }
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Contraseña cambiada exitosamente");
+            System.out.println("✅ Contraseña cambiada para usuario: " + usuario.getNombre_usuario());
 
-            ctx.json(response);
+            ctx.json(Map.of(
+                    "success", true,
+                    "message", "Contraseña cambiada exitosamente",
+                    "timestamp", System.currentTimeMillis()
+            ));
 
         } catch (Exception e) {
+            System.err.println("❌ Error en changePassword: " + e.getMessage());
+            e.printStackTrace();
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .json(createErrorResponse("Error al cambiar contraseña", e.getMessage()));
+                    .json(createErrorResponse("Error interno", "Error al cambiar la contraseña"));
         }
     }
 
     /**
      * Método auxiliar para crear respuestas de error consistentes
      */
-    private Map<String, Object> createErrorResponse(String error, String details) {
+    private Map<String, Object> createErrorResponse(String error, String message) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
         response.put("error", error);
-        response.put("details", details);
+        response.put("message", message);
         response.put("timestamp", System.currentTimeMillis());
         return response;
     }

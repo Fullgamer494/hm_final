@@ -3,6 +3,8 @@ package com.hugin_munin.repository;
 import com.hugin_munin.config.DatabaseConfig;
 import com.hugin_munin.model.Usuario;
 import com.hugin_munin.model.Rol;
+import com.hugin_munin.model.Permiso;
+import com.hugin_munin.model.UsuarioConPermisos;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -11,8 +13,9 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Repositorio para gestionar usuarios
- * Versión corregida y simplificada
+ * Repositorio para gestionar usuarios - COMPLETO CON NUEVO MÉTODO
+ * Versión completa con funcionalidades de permisos - CORREGIDA
+ * AGREGADO: Método para buscar por nombre de usuario
  */
 public class UsuarioRepository {
 
@@ -73,6 +76,130 @@ public class UsuarioRepository {
             }
         }
         return null;
+    }
+
+    /**
+     * BUSCAR usuario con permisos por correo electrónico
+     * Incluye JOIN con rol y permisos - CORREGIDO
+     */
+    public UsuarioConPermisos findUsuarioConPermisosByCorreo(String correo) throws SQLException {
+        // QUERY CORREGIDO - Sin columna descripcion que no existe
+        String query = """
+            SELECT 
+                u.id_usuario,
+                u.nombre_usuario,
+                u.correo,
+                u.activo,
+                u.id_rol,
+                r.nombre_rol,
+                p.id_permiso,
+                p.nombre_permiso
+            FROM usuario u
+            INNER JOIN rol r ON u.id_rol = r.id_rol
+            LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+            LEFT JOIN permiso p ON rp.id_permiso = p.id_permiso
+            WHERE u.correo = ?
+            ORDER BY p.nombre_permiso ASC
+            """;
+
+        System.out.println("🔍 Repository: Ejecutando query corregido para: " + correo);
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, correo.trim());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                UsuarioConPermisos resultado = mapResultSetToUsuarioConPermisos(rs);
+
+                if (resultado == null) {
+                    System.out.println("❌ Repository: No se encontró usuario con correo: " + correo);
+                } else {
+                    System.out.println("✅ Repository: Usuario encontrado con " + resultado.getPermisos().size() + " permisos");
+                }
+
+                return resultado;
+            }
+        }
+    }
+
+    /**
+     * BUSCAR usuario con permisos por nombre de usuario - NUEVO MÉTODO
+     * Incluye JOIN con rol y permisos
+     */
+    public UsuarioConPermisos findUsuarioConPermisosByNombre(String nombreUsuario) throws SQLException {
+        // QUERY para buscar por nombre de usuario
+        String query = """
+            SELECT 
+                u.id_usuario,
+                u.nombre_usuario,
+                u.correo,
+                u.activo,
+                u.id_rol,
+                r.nombre_rol,
+                p.id_permiso,
+                p.nombre_permiso
+            FROM usuario u
+            INNER JOIN rol r ON u.id_rol = r.id_rol
+            LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+            LEFT JOIN permiso p ON rp.id_permiso = p.id_permiso
+            WHERE u.nombre_usuario = ?
+            ORDER BY p.nombre_permiso ASC
+            """;
+
+        System.out.println("🔍 Repository: Ejecutando query por nombre para: " + nombreUsuario);
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, nombreUsuario.trim());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                UsuarioConPermisos resultado = mapResultSetToUsuarioConPermisos(rs);
+
+                if (resultado == null) {
+                    System.out.println("❌ Repository: No se encontró usuario con nombre: " + nombreUsuario);
+                } else {
+                    System.out.println("✅ Repository: Usuario encontrado con " + resultado.getPermisos().size() + " permisos");
+                }
+
+                return resultado;
+            }
+        }
+    }
+
+    /**
+     * BUSCAR usuario con permisos por ID - CORREGIDO
+     */
+    public UsuarioConPermisos findUsuarioConPermisosById(Integer id) throws SQLException {
+        // QUERY CORREGIDO - Sin columna descripcion que no existe
+        String query = """
+            SELECT 
+                u.id_usuario,
+                u.nombre_usuario,
+                u.correo,
+                u.activo,
+                u.id_rol,
+                r.nombre_rol,
+                p.id_permiso,
+                p.nombre_permiso
+            FROM usuario u
+            INNER JOIN rol r ON u.id_rol = r.id_rol
+            LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+            LEFT JOIN permiso p ON rp.id_permiso = p.id_permiso
+            WHERE u.id_usuario = ?
+            ORDER BY p.nombre_permiso ASC
+            """;
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                return mapResultSetToUsuarioConPermisos(rs);
+            }
+        }
     }
 
     /**
@@ -243,5 +370,52 @@ public class UsuarioRepository {
         usuario.setContrasena(rs.getString("contrasena"));
         usuario.setActivo(rs.getBoolean("activo"));
         return usuario;
+    }
+
+    /**
+     * Mapear ResultSet a UsuarioConPermisos - MÉTODO CORREGIDO
+     */
+    private UsuarioConPermisos mapResultSetToUsuarioConPermisos(ResultSet rs) throws SQLException {
+        UsuarioConPermisos usuarioConPermisos = null;
+        List<Permiso> permisos = new ArrayList<>();
+
+        while (rs.next()) {
+            // Si es la primera fila, crear el usuario
+            if (usuarioConPermisos == null) {
+                // Crear usuario
+                Usuario usuario = new Usuario();
+                usuario.setId_usuario(rs.getInt("id_usuario"));
+                usuario.setNombre_usuario(rs.getString("nombre_usuario"));
+                usuario.setCorreo(rs.getString("correo"));
+                usuario.setActivo(rs.getBoolean("activo"));
+                usuario.setId_rol(rs.getInt("id_rol"));
+
+                // Crear rol - SIN descripcion que no existe en BD
+                Rol rol = new Rol();
+                rol.setId_rol(rs.getInt("id_rol"));
+                rol.setNombre_rol(rs.getString("nombre_rol"));
+                // CORREGIDO: Generar descripción automática
+                rol.setDescripcion("Rol " + rs.getString("nombre_rol"));
+                rol.setActivo(true); // Asumimos que está activo
+
+                // Crear objeto combinado
+                usuarioConPermisos = new UsuarioConPermisos(usuario, rol);
+            }
+
+            // Agregar permiso si existe (puede ser NULL por LEFT JOIN)
+            Integer idPermiso = rs.getObject("id_permiso", Integer.class);
+            if (idPermiso != null) {
+                Permiso permiso = new Permiso();
+                permiso.setId_permiso(idPermiso);
+                permiso.setNombre_permiso(rs.getString("nombre_permiso"));
+                permisos.add(permiso);
+            }
+        }
+
+        if (usuarioConPermisos != null) {
+            usuarioConPermisos.setPermisos(permisos);
+        }
+
+        return usuarioConPermisos;
     }
 }

@@ -14,8 +14,8 @@ import java.util.Optional;
 import java.util.Date;
 
 /**
- * Servicio para gestionar reportes de traslado
- * Contiene la lógica de negocio para reportes de traslado
+ * Servicio para gestionar reportes de traslado - COMPLETO
+ * Contiene la lógica de negocio para reportes de traslado con método getReporteById añadido
  */
 public class ReporteTrasladoService {
 
@@ -52,6 +52,14 @@ public class ReporteTrasladoService {
         Optional<ReporteTraslado> reporte = reporteTrasladoRepository.findById(id);
         return reporte.orElseThrow(() ->
                 new IllegalArgumentException("Reporte de traslado no encontrado con ID: " + id));
+    }
+
+    /**
+     * MÉTODO AÑADIDO: Obtener reporte por ID (alias para compatibilidad)
+     * Este método es necesario para el RegistroUnificadoController
+     */
+    public ReporteTraslado getReporteById(Integer id) throws SQLException {
+        return getReporteTrasladoById(id);
     }
 
     /**

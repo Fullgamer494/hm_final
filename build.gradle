@@ -24,7 +24,7 @@ repositories {
 
 dependencies {
     // Javalin - versión estable
-    implementation("io.javalin:javalin:6.1.3")
+    implementation("io.javalin:javalin:6.3.0")
 
     // Logging
     implementation("org.slf4j:slf4j-simple:2.0.13")
